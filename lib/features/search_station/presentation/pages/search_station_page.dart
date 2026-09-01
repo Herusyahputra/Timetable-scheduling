@@ -1,80 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
+import '../../../route_result/data/services/native_route_speech_service.dart';
+import '../../data/datasources/station_remote_data_source.dart';
+import '../../data/repositories/station_repository_impl.dart';
+import '../../domain/entities/station.dart';
+import '../../domain/services/station_voice_guide.dart';
+import '../controllers/station_controller.dart';
 import '../widgets/station_card.dart';
 
-class _StationItem {
-  final String name;
-  final String lineInfo;
-  final String statusText;
-  final Color statusColor;
-  final bool isLrt;
-  final bool isKrl;
-  final bool isAccessible;
-
-  const _StationItem({
-    required this.name,
-    required this.lineInfo,
-    required this.statusText,
-    required this.statusColor,
-    required this.isLrt,
-    required this.isKrl,
-    required this.isAccessible,
-  });
-}
-
-const List<_StationItem> _allStations = [
-  _StationItem(
-    name: 'Setiabudi',
-    lineInfo: 'LRT Jabodebek (Jalur Hijau)',
-    statusText: 'Lift tersedia · 3 menit',
-    statusColor: AppColors.statusGreen,
-    isLrt: true,
-    isKrl: false,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Manggarai',
-    lineInfo: 'KRL Jabodetabek (Jalur Oranye)',
-    statusText: 'Kepadatan sedang · 6 menit',
-    statusColor: AppColors.statusAmber,
-    isLrt: false,
-    isKrl: true,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Cawang',
-    lineInfo: 'LRT Jabodebek & KRL Jabodetabek',
-    statusText: 'Transit aksesibel · 8 menit',
-    statusColor: AppColors.primaryBlue,
-    isLrt: true,
-    isKrl: true,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Tanah Abang',
-    lineInfo: 'KRL Jabodetabek (Jalur Oranye)',
-    statusText: 'Peron ramai · 5 menit',
-    statusColor: AppColors.statusAmber,
-    isLrt: false,
-    isKrl: true,
-    isAccessible: false,
-  ),
-  _StationItem(
-    name: 'Halim',
-    lineInfo: 'LRT Jabodebek (Jalur Hijau) & KCIC',
-    statusText: 'Lift & Ramp tersedia',
-    statusColor: AppColors.statusGreen,
-    isLrt: true,
-    isKrl: false,
-    isAccessible: true,
-  ),
-];
-
-/// Halaman Cari Stasiun (Screen 2 di Figma)
-/// Menampilkan search bar, filter layanan, daftar stasiun,
-/// dan mendukung pemilihan stasiun secara fungsional.
 class SearchStationPage extends StatefulWidget {
   const SearchStationPage({super.key});
 
@@ -83,43 +21,61 @@ class SearchStationPage extends StatefulWidget {
 }
 
 class _SearchStationPageState extends State<SearchStationPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  String _selectedFilter = 'Semua';
+  final _search = TextEditingController();
+  final _speech = const NativeRouteSpeechService();
+  late final StationController _controller;
+  bool _isSpeaking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = StationController(
+      StationRepositoryImpl(StationRemoteDataSource()),
+    )..load();
+  }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    unawaited(_speech.stop());
+    _search.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleVoiceGuide(List<Station> stations) async {
+    if (_isSpeaking) {
+      await _speech.stop();
+      if (mounted) setState(() => _isSpeaking = false);
+      return;
+    }
+
+    final languageCode = Localizations.localeOf(context).languageCode;
+    setState(() => _isSpeaking = true);
+    try {
+      await _speech.speak(
+        buildStationVoiceGuide(stations, languageCode),
+        languageCode,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.stationVoiceGuideError),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Membaca action dan stasiun asal dari query parameters
-    final uri = GoRouterState.of(context).uri;
-    final action = uri.queryParameters['action'];
-    final fromStation = uri.queryParameters['from'];
-    final isSelectingDestination = action == 'select_destination';
-
-    // Logika penyaringan stasiun
-    final filteredStations = _allStations.where((station) {
-      // 1. Filter stasiun asal agar tidak bisa dipilih sebagai stasiun tujuan
-      if (isSelectingDestination && station.name == fromStation) {
-        return false;
-      }
-
-      // 2. Filter berdasarkan ketikan pencarian
-      final matchesSearch = station.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                            station.lineInfo.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      // 3. Filter berdasarkan tab layanan
-      final matchesFilter = _selectedFilter == 'Semua' ||
-                            (_selectedFilter == 'LRT' && station.isLrt) ||
-                            (_selectedFilter == 'KRL' && station.isKrl) ||
-                            (_selectedFilter == 'Aksesibel' && station.isAccessible);
-
-      return matchesSearch && matchesFilter;
-    }).toList();
+    final l10n = AppLocalizations.of(context)!;
+    final query = GoRouterState.of(context).uri.queryParameters;
+    final fromStation = query['from'];
+    final fromStationId = query['fromId'];
+    final selectingDestination = query['action'] == 'select_destination';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -127,256 +83,220 @@ class _SearchStationPageState extends State<SearchStationPage> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── App Bar Custom ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => context.go('/'),
-                            child: const Text(
-                              'Back',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.primaryBlue,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  final stations = _controller.filtered(
+                    excludedName: selectingDestination ? fromStation : null,
+                  );
+                  return RefreshIndicator(
+                    onRefresh: _controller.load,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      children: [
+                        _Header(
+                          title: selectingDestination
+                              ? l10n.selectDestination
+                              : l10n.searchStationTitle,
+                          onBack: () => context.go(
+                            Uri(
+                              path: '/',
+                              queryParameters: {
+                                'from': ?fromStation,
+                                'fromId': ?fromStationId,
+                              },
+                            ).toString(),
                           ),
-                          Expanded(
-                            child: Text(
-                              isSelectingDestination
-                                  ? 'Pilih stasiun tujuan'
-                                  : 'Cari stasiun',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          // ── A11Y Button ──
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: AppColors.a11yYellow,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'A11Y',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
+                          isSpeaking: _isSpeaking,
+                          onVoiceGuide: () => _toggleVoiceGuide(stations),
+                        ),
+                        if (selectingDestination && fromStation != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.startTripFrom(fromStation),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
-                      ),
-                    ),
-
-                    if (isSelectingDestination && fromStation != null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-                        child: Text(
-                          'Mulai perjalanan dari: $fromStation',
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _search,
+                          onChanged: _controller.search,
+                          decoration: InputDecoration(
+                            hintText: l10n.searchStationHint,
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            suffixIcon: _controller.query.isEmpty
+                                ? null
+                                : IconButton(
+                                    onPressed: () {
+                                      _search.clear();
+                                      _controller.search('');
+                                    },
+                                    icon: const Icon(Icons.clear_rounded),
+                                  ),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.cardBorder,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.serviceFilter,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _filter(l10n.all, 'all'),
+                              _filter('LRT', 'LRT'),
+                              _filter('KRL', 'KRL'),
+                              _filter('MRT', 'MRT'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          l10n.quickResults,
                           style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-
-                    // ── Search Bar ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) {
-                          setState(() {
-                            _searchQuery = val;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Ketik nama stasiun, jalur, atau area',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _searchQuery = '';
-                                    });
+                        const SizedBox(height: 12),
+                        if (_controller.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_controller.error != null)
+                          _ErrorState(onRetry: _controller.load)
+                        else if (stations.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Center(child: Text(l10n.stationNotFound)),
+                          )
+                        else
+                          ...stations.map(
+                            (station) => StationCard(
+                              name: station.name,
+                              code: '',
+                              lineInfo: station.lineInfo ?? station.services,
+                              onTap: () => context.go(
+                                Uri(
+                                  path: '/',
+                                  queryParameters: {
+                                    'selected': station.name,
+                                    'selectedId': station.slug,
+                                    'from': ?fromStation,
+                                    'fromId': ?fromStationId,
                                   },
-                                )
-                              : null,
-                          filled: true,
-                          fillColor: AppColors.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.cardBorder),
+                                ).toString(),
+                              ),
+                            ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.cardBorder),
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // ── Filter Layanan ──
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Filter layanan',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          _buildFilterChip('Semua'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('LRT'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('KRL'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Aksesibel'),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Hasil Cepat ──
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Hasil cepat',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ── Daftar Stasiun Dinamis ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: filteredStations.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 40),
-                                child: Text(
-                                  'Stasiun tidak ditemukan',
-                                  style: TextStyle(color: AppColors.textSecondary),
-                                ),
-                              ),
-                            )
-                          : Column(
-                              children: filteredStations.map((station) {
-                                return StationCard(
-                                  name: station.name,
-                                  lineInfo: station.lineInfo,
-                                  statusText: station.statusText,
-                                  statusColor: station.statusColor,
-                                  onTap: () {
-                                    if (isSelectingDestination && fromStation != null) {
-                                      // Rute Tercepat
-                                      context.go('/rute?from=$fromStation&to=${station.name}');
-                                    } else {
-                                      // Pilih di Peta Utama
-                                      context.go('/?selected=${station.name}');
-                                    }
-                                  },
-                                );
-                              }).toList(),
-                            ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ── Banner Tanpa Login ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.a11yBannerBg,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tanpa login',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.a11yBannerText,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Favorit dan riwayat disimpan lokal di perangkat.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
-
-            // ── Bottom Navigation Bar ──
-            AppBottomNavBar(currentIndex: isSelectingDestination ? 0 : 1),
+            AppBottomNavBar(currentIndex: selectingDestination ? 0 : 1),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _selectedFilter == label;
-    return ServiceFilterChip(
+  Widget _filter(String label, String value) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: ServiceFilterChip(
       label: label,
-      isSelected: isSelected,
-      onTap: () {
-        setState(() {
-          _selectedFilter = label;
-        });
-      },
-    );
-  }
+      isSelected: _controller.filter == value,
+      onTap: () => _controller.selectFilter(value),
+    ),
+  );
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.title,
+    required this.onBack,
+    required this.isSpeaking,
+    required this.onVoiceGuide,
+  });
+  final String title;
+  final VoidCallback onBack;
+  final bool isSpeaking;
+  final VoidCallback onVoiceGuide;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      TextButton(
+        onPressed: onBack,
+        child: const Icon(Icons.arrow_back_rounded),
+      ),
+      Expanded(
+        child: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+      ),
+      Semantics(
+        button: true,
+        label: isSpeaking
+            ? AppLocalizations.of(context)!.stationVoiceGuideStop
+            : AppLocalizations.of(context)!.stationVoiceGuide,
+        child: ExcludeSemantics(
+          child: IconButton.filled(
+            onPressed: onVoiceGuide,
+            tooltip: isSpeaking
+                ? AppLocalizations.of(context)!.stationVoiceGuideStop
+                : AppLocalizations.of(context)!.stationVoiceGuide,
+            icon: Icon(
+              isSpeaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+            ),
+            color: AppColors.textPrimary,
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.a11yYellow,
+              minimumSize: const Size.square(48),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 32),
+    child: Column(
+      children: [
+        Text(
+          AppLocalizations.of(context)!.stationLoadError,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: onRetry,
+          child: Text(AppLocalizations.of(context)!.actionRetry),
+        ),
+      ],
+    ),
+  );
 }

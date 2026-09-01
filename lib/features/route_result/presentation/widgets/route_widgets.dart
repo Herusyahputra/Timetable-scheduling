@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Widget untuk menampilkan timeline rute perjalanan (titik asal ke tujuan)
 class RouteTimeline extends StatelessWidget {
@@ -45,11 +46,7 @@ class RouteTimeline extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  Container(
-                    width: 3,
-                    height: 60,
-                    color: AppColors.primaryBlue,
-                  ),
+                  Container(width: 3, height: 60, color: AppColors.primaryBlue),
                 ],
               ),
               const SizedBox(width: 14),
@@ -58,7 +55,9 @@ class RouteTimeline extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dari $fromStation',
+                      AppLocalizations.of(
+                        context,
+                      )!.routeFromStation(fromStation),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -88,10 +87,7 @@ class RouteTimeline extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primaryBlue.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.primaryBlue,
-                    width: 3,
-                  ),
+                  border: Border.all(color: AppColors.primaryBlue, width: 3),
                 ),
               ),
               const SizedBox(width: 14),
@@ -100,7 +96,7 @@ class RouteTimeline extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Ke $toStation',
+                      AppLocalizations.of(context)!.routeToStation(toStation),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -130,10 +126,7 @@ class RouteTimeline extends StatelessWidget {
 class LiveEtaCard extends StatelessWidget {
   final String etaText;
 
-  const LiveEtaCard({
-    super.key,
-    required this.etaText,
-  });
+  const LiveEtaCard({super.key, required this.etaText});
 
   @override
   Widget build(BuildContext context) {
@@ -151,9 +144,9 @@ class LiveEtaCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Kereta berikutnya',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.nextTrain,
+                style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
@@ -164,9 +157,9 @@ class LiveEtaCard extends StatelessWidget {
                   color: AppColors.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'Live ETA',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context)!.routeLiveEta,
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primaryBlue,
