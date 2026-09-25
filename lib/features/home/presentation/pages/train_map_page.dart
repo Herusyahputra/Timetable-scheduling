@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
+import '../../data/krl_station_locations.dart';
+import '../../data/services/user_location_service.dart';
+import '../../domain/entities/station_geo_point.dart';
+import '../widgets/station_located_map.dart';
 import '../../../home/presentation/widgets/map_widgets.dart';
 
 /// Halaman Kereta / Train Map (Screen 1 di Figma)
 /// Menampilkan peta skematik (warna pudar), search bar, tombol aksi stasiun,
 /// dan info detail stasiun yang dipilih. Stasiun bisa diklik.
 class TrainMapPage extends StatefulWidget {
-  const TrainMapPage({super.key});
+  const TrainMapPage({
+    super.key,
+    this.locationService = const UserLocationService(),
+    this.stationLocations = krlStationLocations,
+  });
+
+  final UserLocationService locationService;
+  final List<StationGeoPoint> stationLocations;
 
   @override
   State<TrainMapPage> createState() => _TrainMapPageState();
@@ -18,17 +30,56 @@ class _TrainMapPageState extends State<TrainMapPage> {
   String _selectedStation = 'Cawang';
 
   /// Data dummy info stasiun
-  Map<String, Map<String, String>> get _stationData => {
-    'Setiabudi': {'subtitle': 'LRT Jabodebek · KRL akses integrasi', 'lrtDest': 'Dukuh Atas', 'lrtDur': '3 menit', 'krlDest': 'Manggarai', 'krlDur': '7 menit'},
-    'Cawang': {'subtitle': 'LRT Jabodebek · KRL akses integrasi', 'lrtDest': 'Dukuh Atas', 'lrtDur': '5 menit', 'krlDest': 'Manggarai', 'krlDur': '9 menit'},
-    'Manggarai': {'subtitle': 'KRL · Transit utama', 'lrtDest': 'Setiabudi', 'lrtDur': '4 menit', 'krlDest': 'Tanah Abang', 'krlDur': '6 menit'},
-    'Tanah Abang': {'subtitle': 'KRL Jabodetabek', 'lrtDest': 'Manggarai', 'lrtDur': '6 menit', 'krlDest': 'Sudirman', 'krlDur': '3 menit'},
-    'Halim': {'subtitle': 'LRT Jabodebek', 'lrtDest': 'Setiabudi', 'lrtDur': '8 menit', 'krlDest': 'Cawang', 'krlDur': '4 menit'},
+  Map<String, Map<String, String>> _getStationData(AppLocalizations l10n) => {
+    'Setiabudi': {
+      'subtitle': l10n.mapSubtitleLrtKrl,
+      'lrtDest': 'Dukuh Atas',
+      'lrtDur': l10n.durationMinutes('3'),
+      'krlDest': 'Manggarai',
+      'krlDur': l10n.durationMinutes('7'),
+    },
+    'Cawang': {
+      'subtitle': l10n.mapSubtitleLrtKrl,
+      'lrtDest': 'Dukuh Atas',
+      'lrtDur': l10n.durationMinutes('5'),
+      'krlDest': 'Manggarai',
+      'krlDur': l10n.durationMinutes('9'),
+    },
+    'Manggarai': {
+      'subtitle': l10n.mapSubtitleKrlTransit,
+      'lrtDest': 'Setiabudi',
+      'lrtDur': l10n.durationMinutes('4'),
+      'krlDest': 'Tanah Abang',
+      'krlDur': l10n.durationMinutes('6'),
+    },
+    'Tanah Abang': {
+      'subtitle': l10n.mapSubtitleKrl,
+      'lrtDest': 'Manggarai',
+      'lrtDur': l10n.durationMinutes('6'),
+      'krlDest': 'Sudirman',
+      'krlDur': l10n.durationMinutes('3'),
+    },
+    'Halim': {
+      'subtitle': l10n.mapSubtitleLrt,
+      'lrtDest': 'Setiabudi',
+      'lrtDur': l10n.durationMinutes('8'),
+      'krlDest': 'Cawang',
+      'krlDur': l10n.durationMinutes('4'),
+    },
   };
 
   @override
   Widget build(BuildContext context) {
-    final data = _stationData[_selectedStation]!;
+    final l10n = AppLocalizations.of(context)!;
+    final data =
+        _getStationData(l10n)[_selectedStation] ??
+        {
+          'subtitle': 'Stasiun KRL Jabodetabek',
+          'lrtDest': '-',
+          'lrtDur': '-',
+          'krlDest': 'Lihat jadwal',
+          'krlDur': 'KRL',
+        };
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -48,19 +99,25 @@ class _TrainMapPageState extends State<TrainMapPage> {
                       child: GestureDetector(
                         onTap: () => context.go('/cari-stasiun'),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: AppColors.cardBorder),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(Icons.search, color: AppColors.textHint),
-                              SizedBox(width: 12),
+                              const Icon(
+                                Icons.search,
+                                color: AppColors.textHint,
+                              ),
+                              const SizedBox(width: 12),
                               Text(
-                                'Cari stasiun atau favorit',
-                                style: TextStyle(
+                                l10n.mapSearchHint,
+                                style: const TextStyle(
                                   color: AppColors.textHint,
                                   fontSize: 14,
                                 ),
@@ -72,12 +129,17 @@ class _TrainMapPageState extends State<TrainMapPage> {
                     ),
 
                     // ── Peta Skematik (warna pudar, interaktif) ──
-                    MapView(
-                      showColors: false,
-                      selectedStation: _selectedStation,
-                      onStationSelected: (name) {
-                        setState(() => _selectedStation = name);
-                      },
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.45,
+                      child: StationLocatedMap(
+                        showColors: false,
+                        selectedStation: _selectedStation,
+                        locationService: widget.locationService,
+                        stationLocations: widget.stationLocations,
+                        onStationSelected: (name) {
+                          setState(() => _selectedStation = name);
+                        },
+                      ),
                     ),
 
                     // ── Tombol Aksi Stasiun (Dari, Lewat, Ke, Info) ──
