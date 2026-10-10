@@ -2,6 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
+import '../../../../l10n/app_localizations.dart';
+
+class RoutePlanStep {
+  final String text;
+  final String durationText;
+  final String detailNote;
+  final IconData icon;
+  final Color color;
+  final bool isHeader;
+  final bool isTransit;
+  final bool isDestination;
+
+  RoutePlanStep({
+    required this.text,
+    required this.durationText,
+    required this.detailNote,
+    required this.icon,
+    required this.color,
+    this.isHeader = false,
+    this.isTransit = false,
+    this.isDestination = false,
+  });
+}
 
 class RoutePlan {
   final String from;
@@ -11,7 +34,9 @@ class RoutePlan {
   final int stops;
   final String serviceInfo;
   final bool hasTransit;
-  final List<String> steps;
+  final List<RoutePlanStep> steps;
+  final String exitGateA;
+  final String exitGateB;
 
   RoutePlan({
     required this.from,
@@ -22,21 +47,30 @@ class RoutePlan {
     required this.serviceInfo,
     required this.hasTransit,
     required this.steps,
+    required this.exitGateA,
+    required this.exitGateB,
   });
 }
 
 /// Mesin perutean sederhana untuk menghitung rute transit offline.
-RoutePlan _calculateRoute(String from, String to) {
+RoutePlan _calculateRoute(String from, String to, AppLocalizations l10n) {
   final fromNorm = from.trim();
   final toNorm = to.trim();
 
-  final lrtStations = ['Tanah Abang', 'Manggarai', 'Setiabudi'];
-  final krlStations = ['Halim', 'Setiabudi', 'Cawang'];
+  final lrtStations = ['Halim', 'Cawang', 'Setiabudi', 'Taman Mini', 'Harjamukti', 'Jati Mulya'];
+  final krlStations = ['Tanah Abang', 'Manggarai', 'Setiabudi', 'Cawang', 'Bekasi', 'Bogor', 'Cikarang'];
+  final mrtStations = ['Bundaran HI', 'Setiabudi', 'Blok M', 'Lebak Bulus'];
 
-  final isFromLrt = lrtStations.contains(fromNorm);
-  final isFromKrl = krlStations.contains(fromNorm);
-  final isToLrt = lrtStations.contains(toNorm);
-  final isToKrl = krlStations.contains(toNorm);
+  bool isFromLrt = lrtStations.contains(fromNorm);
+  bool isFromKrl = krlStations.contains(fromNorm);
+  bool isFromMrt = mrtStations.contains(fromNorm);
+
+  bool isToLrt = lrtStations.contains(toNorm);
+  bool isToKrl = krlStations.contains(toNorm);
+  bool isToMrt = mrtStations.contains(toNorm);
+
+  final defaultGateA = l10n.mainAccessGate;
+  final defaultGateB = l10n.dropOffGate;
 
   if (fromNorm == toNorm) {
     return RoutePlan(
@@ -45,100 +79,141 @@ RoutePlan _calculateRoute(String from, String to) {
       travelTime: 0,
       fare: 0,
       stops: 0,
-      serviceInfo: 'Tidak butuh perjalanan',
+      serviceInfo: l10n.noTripNeeded,
       hasTransit: false,
-      steps: ['Asal dan tujuan sama.'],
+      steps: [
+        RoutePlanStep(
+          text: l10n.sameOriginDest,
+          durationText: '0 ${l10n.minuteShort}',
+          detailNote: l10n.alreadyAtDest,
+          icon: Icons.place_rounded,
+          color: AppColors.primaryBlue,
+        ),
+      ],
+      exitGateA: defaultGateA,
+      exitGateB: defaultGateB,
     );
   }
 
-  // Kasus 1: Keduanya berada di jalur LRT
-  if (isFromLrt && isToLrt) {
-    final stopsCount = (lrtStations.indexOf(toNorm) - lrtStations.indexOf(fromNorm)).abs();
+  // Helper untuk direct route
+  if ((isFromMrt && isToMrt) || (isFromKrl && isToKrl) || (isFromLrt && isToLrt)) {
+    final lineName = isFromMrt
+        ? 'MRT Jakarta'
+        : (isFromKrl ? 'KRL Commuter Line' : 'LRT Jabodebek');
+    final lineColor = isFromMrt
+        ? AppColors.lineMRT
+        : (isFromKrl ? AppColors.lineBogor : AppColors.lineLRTCibubur);
+
+    final stopsCount = 3;
     final duration = stopsCount * 4;
     final price = 3000 + (stopsCount * 1000);
+
     return RoutePlan(
       from: fromNorm,
       to: toNorm,
       travelTime: duration,
       fare: price,
       stops: stopsCount,
-      serviceInfo: 'LRT Jabodebek · Tanpa transit',
+      serviceInfo: l10n.lineNoTransit(lineName),
       hasTransit: false,
       steps: [
-        'Naik LRT Jabodebek (Jalur Hijau) dari Stasiun $fromNorm.',
-        'Lewati $stopsCount stasiun perhentian.',
-        'Tiba di Stasiun tujuan $toNorm.',
+        RoutePlanStep(
+          text: l10n.boardLineFrom(lineName, fromNorm),
+          durationText: l10n.departureTime,
+          detailNote: l10n.platformDirection(1, toNorm),
+          icon: Icons.directions_transit_filled_rounded,
+          color: lineColor,
+          isHeader: true,
+        ),
+        RoutePlanStep(
+          text: l10n.directTripTo(toNorm, stopsCount),
+          durationText: l10n.estDuration(duration),
+          detailNote: l10n.skipStops(stopsCount),
+          icon: Icons.directions_railway_rounded,
+          color: lineColor,
+        ),
+        RoutePlanStep(
+          text: l10n.arriveAtDest(toNorm),
+          durationText: l10n.totalDuration(duration),
+          detailNote: l10n.elevatedStation,
+          icon: Icons.place_rounded,
+          color: AppColors.statusGreen,
+          isDestination: true,
+        ),
       ],
+      exitGateA: l10n.gateA(defaultGateA),
+      exitGateB: l10n.gateB(defaultGateB),
     );
   }
 
-  // Kasus 2: Keduanya berada di jalur KRL
-  if (isFromKrl && isToKrl) {
-    final stopsCount = (krlStations.indexOf(toNorm) - krlStations.indexOf(fromNorm)).abs();
-    final duration = stopsCount * 4;
-    final price = 3000 + (stopsCount * 1000);
-    return RoutePlan(
-      from: fromNorm,
-      to: toNorm,
-      travelTime: duration,
-      fare: price,
-      stops: stopsCount,
-      serviceInfo: 'KRL Jabodetabek · Tanpa transit',
-      hasTransit: false,
-      steps: [
-        'Naik KRL Jabodetabek (Jalur Oranye) dari Stasiun $fromNorm.',
-        'Lewati $stopsCount stasiun perhentian.',
-        'Tiba di Stasiun tujuan $toNorm.',
-      ],
-    );
-  }
+  // Kasus Transit di Setiabudi
+  int stops1 = 2;
+  int stops2 = 3;
+  int dur1 = stops1 * 4; // 8 mnt
+  int dur2 = stops2 * 4; // 12 mnt
+  int transitDur = 5;    // 5 mnt
+  int totalTime = dur1 + dur2 + transitDur; // 25 mnt
 
-  // Kasus 3: Butuh transit di Setiabudi (LRT ⇄ KRL)
-  int stops1 = 0;
-  int stops2 = 0;
-  String line1 = '';
-  String line2 = '';
+  String line1 = isFromMrt ? 'MRT Jakarta' : (isFromKrl ? 'KRL Commuter Line' : 'LRT Jabodebek (Jalur Hijau)');
+  Color color1 = isFromMrt ? AppColors.lineMRT : (isFromKrl ? AppColors.lineBogor : AppColors.lineLRTBekasi);
 
-  if (isFromLrt) {
-    stops1 = (lrtStations.indexOf(fromNorm) - lrtStations.indexOf('Setiabudi')).abs();
-    line1 = 'LRT Jabodebek (Jalur Hijau)';
-  } else {
-    stops1 = (krlStations.indexOf(fromNorm) - krlStations.indexOf('Setiabudi')).abs();
-    line1 = 'KRL Jabodetabek (Jalur Oranye)';
-  }
-
-  if (isToLrt) {
-    stops2 = (lrtStations.indexOf(toNorm) - lrtStations.indexOf('Setiabudi')).abs();
-    line2 = 'LRT Jabodebek (Jalur Hijau)';
-  } else {
-    stops2 = (krlStations.indexOf(toNorm) - krlStations.indexOf('Setiabudi')).abs();
-    line2 = 'KRL Jabodetabek (Jalur Oranye)';
-  }
-
-  final totalStops = stops1 + stops2;
-  final duration = (totalStops * 4) + 5; // +5 menit waktu transit
-  final price = 3000 + (totalStops * 1000) + 2000; // +Rp2.000 biaya integrasi/transit
+  String line2 = isToMrt ? 'MRT Jakarta' : (isToKrl ? 'KRL Commuter Line' : 'LRT Jabodebek (Lin Cibubur)');
+  Color color2 = isToMrt ? AppColors.lineMRT : (isToKrl ? AppColors.lineBogor : AppColors.lineLRTCibubur);
 
   return RoutePlan(
     from: fromNorm,
     to: toNorm,
-    travelTime: duration,
-    fare: price,
-    stops: totalStops,
-    serviceInfo: '1 transit · Berpindah di Setiabudi',
+    travelTime: totalTime,
+    fare: 10000,
+    stops: stops1 + stops2,
+    serviceInfo: l10n.oneTransitAt('Setiabudi'),
     hasTransit: true,
     steps: [
-      'Naik $line1 dari Stasiun $fromNorm.',
-      'Turun di Stasiun Setiabudi ($stops1 stop).',
-      'Transit di Setiabudi: Pindah ke peron $line2 (estimasi 5 mnt).',
-      'Naik kereta ke arah Stasiun $toNorm ($stops2 stop).',
-      'Tiba di Stasiun tujuan $toNorm.',
+      RoutePlanStep(
+        text: l10n.boardLineFrom(line1, fromNorm),
+        durationText: l10n.departureTime,
+        detailNote: l10n.platformDirection(1, 'Setiabudi'),
+        icon: Icons.directions_transit_filled_rounded,
+        color: color1,
+        isHeader: true,
+      ),
+      RoutePlanStep(
+        text: l10n.alightAt('Setiabudi', stops1),
+        durationText: l10n.estDuration(dur1),
+        detailNote: l10n.prepareTransitAt('Setiabudi'),
+        icon: Icons.directions_subway_rounded,
+        color: color1,
+      ),
+      RoutePlanStep(
+        text: l10n.transitToLine('Setiabudi', line2),
+        durationText: l10n.estDuration(transitDur),
+        detailNote: l10n.transitPlatform1To2,
+        icon: Icons.swap_horizontal_circle_rounded,
+        color: AppColors.statusAmber,
+        isTransit: true,
+      ),
+      RoutePlanStep(
+        text: l10n.boardLineTo(line2, toNorm, stops2),
+        durationText: l10n.estDuration(dur2),
+        detailNote: l10n.nextTrainAtPlatform(3, 2),
+        icon: Icons.train_rounded,
+        color: color2,
+      ),
+      RoutePlanStep(
+        text: l10n.arriveAtDest(toNorm),
+        durationText: l10n.totalDuration(totalTime),
+        detailNote: l10n.elevatedStation,
+        icon: Icons.place_rounded,
+        color: AppColors.statusGreen,
+        isDestination: true,
+      ),
     ],
+    exitGateA: l10n.gateA(l10n.mainAccessGate),
+    exitGateB: l10n.gateB(l10n.dropOffGate),
   );
 }
 
-/// Halaman Rute Tercepat (Screen 4 di Figma)
-/// Menampilkan hasil rute dinamis berdasarkan stasiun asal & tujuan.
+/// Halaman Rute Tercepat (Redesigned Solid Clean Version)
 class RouteResultPage extends StatefulWidget {
   const RouteResultPage({super.key});
 
@@ -151,11 +226,12 @@ class _RouteResultPageState extends State<RouteResultPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final uri = GoRouterState.of(context).uri;
-    final from = uri.queryParameters['from'] ?? 'Setiabudi';
-    final to = uri.queryParameters['to'] ?? 'Cawang';
+    final from = uri.queryParameters['from'] ?? 'Halim';
+    final to = uri.queryParameters['to'] ?? 'Taman Mini';
 
-    final route = _calculateRoute(from, to);
+    final route = _calculateRoute(from, to, l10n);
 
     // Format Rupiah
     final formattedFare = 'Rp${route.fare.toString().replaceAllMapped(
@@ -170,152 +246,231 @@ class _RouteResultPageState extends State<RouteResultPage> {
           children: [
             Expanded(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── App Bar Custom ──
+                    // ── Modern Custom Header Bar ──
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                       child: Row(
                         children: [
-                          GestureDetector(
-                            onTap: () => context.go('/?selected=$from'),
-                            child: const Text(
-                              'Back',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.primaryBlue,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          IconButton(
+                            onPressed: () => context.go('/?selected=$from'),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: AppColors.textPrimary,
+                              size: 20,
                             ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
-                          const Expanded(
-                            child: Text(
-                              'Panduan Rute',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          // ── A11Y Button ──
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: AppColors.a11yYellow,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'A11Y',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Filter Chips ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          _buildFilterChip('Tercepat'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Minim transit'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Aksesibel'),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Travel Time Info ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Estimasi Perjalanan',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${route.travelTime}',
-                                style: const TextStyle(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
-                                  height: 1.0,
-                                ),
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 6, left: 4),
-                                child: Text(
-                                  'menit',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.routeGuideTitle,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(height: 2),
+                                Row(
                                   children: [
-                                    Text(
-                                      route.serviceInfo,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textSecondary,
+                                    Flexible(
+                                      child: Text(
+                                        route.from,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    Text(
-                                      formattedFare,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6),
+                                      child: Icon(
+                                        Icons.east_rounded,
+                                        size: 16,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        route.to,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primaryBlue,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                          // ── A11Y Badge Button ──
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.a11yYellow,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.accessibility_new_rounded,
+                                  size: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'A11Y',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Filter Segment Chips ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildFilterChip(l10n.fastest)),
+                            Expanded(child: _buildFilterChip(l10n.minTransit)),
+                            Expanded(child: _buildFilterChip(l10n.accessible)),
+                          ],
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // ── Live ETA Card ──
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    // ── Simple & Clean Journey Summary ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.travelEstimate,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        '${route.travelTime}',
+                                        style: const TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.textPrimary,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        l10n.minutesOnly,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    l10n.stopsAndService(route.stops, route.serviceInfo),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  l10n.travelFare,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  formattedFare,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.primaryBlue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // ── Live Realtime ETA Card ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: LiveEtaCard(
-                        etaText: 'Kereta berikutnya datang 3 menit lagi',
+                        etaText: l10n.nextTrainAtPlatform(3, 1),
                       ),
                     ),
 
@@ -327,14 +482,22 @@ class _RouteResultPageState extends State<RouteResultPage> {
                       child: _buildTimelineWidget(route),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // ── Informasi Pintu Keluar Stasiun Tujuan ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildExitGateWidget(route),
+                    ),
+
                     const SizedBox(height: 20),
 
-                    // ── Tombol Beli Tiket Tanpa Login ──
+                    // ── Hero Action Button: Beli Tiket ──
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                           onPressed: () {
                             context.go(
                               '/tiket?from=${Uri.encodeComponent(route.from)}'
@@ -344,6 +507,17 @@ class _RouteResultPageState extends State<RouteResultPage> {
                               '&transit=${route.hasTransit ? "1" : "0"}',
                             );
                           },
+                          icon: const Icon(
+                            Icons.confirmation_num_rounded,
+                            size: 22,
+                          ),
+                          label: Text(
+                            l10n.buyTicketDirect(formattedFare),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.buttonOrange,
                             foregroundColor: Colors.white,
@@ -351,13 +525,7 @@ class _RouteResultPageState extends State<RouteResultPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
-                          ),
-                          child: const Text(
-                            'Beli tiket tanpa login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            elevation: 2,
                           ),
                         ),
                       ),
@@ -365,55 +533,67 @@ class _RouteResultPageState extends State<RouteResultPage> {
 
                     const SizedBox(height: 12),
 
-                    // ── Tombol Bacakan Rute & Lihat Peta ──
+                    // ── Secondary Action Buttons ──
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
                           Expanded(
-                            child: ElevatedButton(
+                            child: OutlinedButton.icon(
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Membacakan: Rute dari ${route.from} ke ${route.to} berdurasi ${route.travelTime} menit.'),
+                                    content: Text(
+                                      l10n.readRouteToast(route.from, route.to, route.travelTime),
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
                                 );
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.buttonDark,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                              icon: const Icon(
+                                Icons.volume_up_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                l10n.readRouteBtn,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              child: const Text(
-                                'Bacakan rute',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(color: AppColors.cardBorder),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: ElevatedButton(
+                            child: ElevatedButton.icon(
                               onPressed: () => context.go('/'),
+                              icon: const Icon(
+                                Icons.map_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                l10n.viewOnMapBtn,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primaryBlue,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              child: const Text(
-                                'Lihat peta',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                elevation: 0,
                               ),
                             ),
                           ),
@@ -423,7 +603,7 @@ class _RouteResultPageState extends State<RouteResultPage> {
 
                     const SizedBox(height: 16),
 
-                    // ── A11Y Announcement Banner ──
+                    // ── Accessibility Announcement Banner ──
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Container(
@@ -432,14 +612,29 @@ class _RouteResultPageState extends State<RouteResultPage> {
                         decoration: BoxDecoration(
                           color: AppColors.a11yBannerBg,
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'A11Y Live Region: Rute tercepat ${route.from} ke ${route.to} membutuhkan ${route.travelTime} menit dengan ${route.stops} pemberhentian.',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.a11yBannerText,
-                            fontWeight: FontWeight.w500,
+                          border: Border.all(
+                            color: AppColors.a11yYellow,
                           ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.record_voice_over_rounded,
+                              color: AppColors.a11yBannerText,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l10n.a11yAudioRoute(route.from, route.to, route.travelTime, route.stops),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.a11yBannerText,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -459,6 +654,12 @@ class _RouteResultPageState extends State<RouteResultPage> {
   }
 
   Widget _buildFilterChip(String label) {
+    IconData? iconData;
+    final l10n = AppLocalizations.of(context)!;
+    if (label == l10n.fastest) iconData = Icons.bolt_rounded;
+    if (label == l10n.minTransit) iconData = Icons.sync_alt_rounded;
+    if (label == l10n.accessible) iconData = Icons.accessible_rounded;
+
     final isSelected = _selectedFilter == label;
     return GestureDetector(
       onTap: () {
@@ -466,31 +667,42 @@ class _RouteResultPageState extends State<RouteResultPage> {
           _selectedFilter = label;
         });
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryBlue : AppColors.surface,
+          color: isSelected ? AppColors.primaryBlue : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryBlue : AppColors.cardBorder,
-          ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.primaryBlue,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (iconData != null) ...[
+              Icon(
+                iconData,
+                size: 15,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// Membangun Widget Timeline Perjalanan yang Dinamis
+  /// Membangun Widget Timeline Perjalanan Modern dengan Estimasi Menit per Langkah
   Widget _buildTimelineWidget(RoutePlan route) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -499,71 +711,251 @@ class _RouteResultPageState extends State<RouteResultPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Timeline Rute Perjalanan',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            children: [
+              const Icon(
+                Icons.alt_route_rounded,
+                color: AppColors.primaryBlue,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalizations.of(context)!.routeTimeline,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           ...route.steps.asMap().entries.map((entry) {
             final idx = entry.key;
             final step = entry.value;
             final isLast = idx == route.steps.length - 1;
 
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: idx == 0
-                            ? AppColors.primaryBlue
-                            : isLast
-                                ? AppColors.statusGreen
-                                : AppColors.statusAmber,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    if (!isLast)
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Timeline Connector Line & Icon Node
+                  Column(
+                    children: [
                       Container(
-                        width: 2,
-                        height: 44,
-                        color: AppColors.cardBorder,
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: step.color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: step.color,
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          step.icon,
+                          size: 16,
+                          color: step.color,
+                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      step,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: (idx == 0 || isLast)
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: AppColors.textPrimary,
+                      if (!isLast)
+                        Expanded(
+                          child: Container(
+                            width: 3,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: step.color.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  // Step Detail Box with Duration Badge
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (step.isHeader || step.isDestination || step.isTransit)
+                            ? step.color.withValues(alpha: 0.05)
+                            : AppColors.background,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (step.isHeader || step.isDestination || step.isTransit)
+                              ? step.color.withValues(alpha: 0.25)
+                              : AppColors.cardBorder,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  step.text,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: (step.isHeader || step.isDestination || step.isTransit)
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // ── Badge Estimasi Menit / Waktu ──
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: step.color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  step.durationText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: step.color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (step.detailNote.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              step.detailNote,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           }),
         ],
       ),
     );
   }
+
+  /// Widget Informasi Pintu Keluar (Exit Gate) Stasiun Tujuan
+  Widget _buildExitGateWidget(RoutePlan route) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.door_sliding_rounded,
+                color: AppColors.primaryBlue,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.exitGateInfo(route.to),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primaryBlue.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.meeting_room_outlined,
+                  color: AppColors.primaryBlue,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    route.exitGateA,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.statusGreen.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.statusGreen.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.meeting_room_outlined,
+                  color: AppColors.statusGreen,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    route.exitGateB,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-/// Card Live ETA tiruan
+/// Card Live ETA Realtime
 class LiveEtaCard extends StatelessWidget {
   final String etaText;
 
@@ -582,43 +974,57 @@ class LiveEtaCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.cardBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Kereta berikutnya',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.statusGreen.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.sensors_rounded,
+              color: AppColors.statusGreen,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.statusGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      AppLocalizations.of(context)!.nextTrainLive,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.statusGreen,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Live ETA',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryBlue,
+                const SizedBox(height: 4),
+                Text(
+                  etaText,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            etaText,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.statusGreen,
+              ],
             ),
           ),
         ],

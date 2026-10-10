@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../widgets/station_card.dart';
 
 class _StationItem {
@@ -11,6 +12,7 @@ class _StationItem {
   final Color statusColor;
   final bool isLrt;
   final bool isKrl;
+  final bool isMrt;
   final bool isAccessible;
 
   const _StationItem({
@@ -20,56 +22,148 @@ class _StationItem {
     required this.statusColor,
     required this.isLrt,
     required this.isKrl,
+    required this.isMrt,
     required this.isAccessible,
   });
 }
 
 const List<_StationItem> _allStations = [
-  _StationItem(
-    name: 'Setiabudi',
-    lineInfo: 'LRT Jabodebek (Jalur Hijau)',
-    statusText: 'Lift tersedia · 3 menit',
-    statusColor: AppColors.statusGreen,
-    isLrt: true,
-    isKrl: false,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Manggarai',
-    lineInfo: 'KRL Jabodetabek (Jalur Oranye)',
-    statusText: 'Kepadatan sedang · 6 menit',
-    statusColor: AppColors.statusAmber,
-    isLrt: false,
-    isKrl: true,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Cawang',
-    lineInfo: 'LRT Jabodebek & KRL Jabodetabek',
-    statusText: 'Transit aksesibel · 8 menit',
-    statusColor: AppColors.primaryBlue,
-    isLrt: true,
-    isKrl: true,
-    isAccessible: true,
-  ),
-  _StationItem(
-    name: 'Tanah Abang',
-    lineInfo: 'KRL Jabodetabek (Jalur Oranye)',
-    statusText: 'Peron ramai · 5 menit',
-    statusColor: AppColors.statusAmber,
-    isLrt: false,
-    isKrl: true,
-    isAccessible: false,
-  ),
-  _StationItem(
-    name: 'Halim',
-    lineInfo: 'LRT Jabodebek (Jalur Hijau) & KCIC',
-    statusText: 'Lift & Ramp tersedia',
-    statusColor: AppColors.statusGreen,
-    isLrt: true,
-    isKrl: false,
-    isAccessible: true,
-  ),
+  // ── MRT JAKARTA ──
+  _StationItem(name: 'Bundaran HI', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Stasiun Utama · 3 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Dukuh Atas', lineInfo: 'MRT, LRT Jabodebek, & KRL', statusText: 'Transit Utama · 3 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: true, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Setiabudi', lineInfo: 'MRT, LRT Jabodebek, & KRL', statusText: 'Transit Aksesibel · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: true, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Bendungan Hilir', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Istora Mandiri', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Senayan', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'ASEAN HQ', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Blok M', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lift & Eskalator', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Blok A', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Haji Nawi', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Cipete Raya', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Fatmawati', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+  _StationItem(name: 'Lebak Bulus', lineInfo: 'MRT Lin Utara - Selatan', statusText: 'Terminus · 3 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: false, isMrt: true, isAccessible: true),
+
+  // ── KRL BOGOR & NAMBO ──
+  _StationItem(name: 'Jakarta Kota', lineInfo: 'KRL Lin Bogor & Tanjung Priok', statusText: 'Transit Terminus · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jayakarta', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Mangga Besar', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Sawah Besar', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Juanda', lineInfo: 'KRL Lin Bogor', statusText: 'Peron Ramai · 4 menit', statusColor: AppColors.statusAmber, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Gondangdia', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cikini', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Manggarai', lineInfo: 'KRL Lin Bogor & Cikarang', statusText: 'Transit Utama · 3 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tebet', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cawang', lineInfo: 'KRL Lin Bogor & LRT Jabodebek', statusText: 'Transit Aksesibel · 6 menit', statusColor: AppColors.primaryBlue, isLrt: true, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Duren Kalibata', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pasar Minggu Baru', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pasar Minggu', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tanjung Barat', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Lenteng Agung', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Univ. Pancasila', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Univ. Indonesia', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pondok Cina', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Depok Baru', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Depok', lineInfo: 'KRL Lin Bogor', statusText: 'Peron Ramai · 4 menit', statusColor: AppColors.statusAmber, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Citayam', lineInfo: 'KRL Lin Bogor & Cabang Nambo', statusText: 'Transit Cabang · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bojong Gede', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cilebut', lineInfo: 'KRL Lin Bogor', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bogor', lineInfo: 'KRL Lin Bogor', statusText: 'Terminus · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pondok Rajeg', lineInfo: 'KRL Cabang Nambo', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cibinong', lineInfo: 'KRL Cabang Nambo', statusText: 'Lancar · 7 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Gunung Putri', lineInfo: 'KRL Cabang Nambo', statusText: 'Lancar · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Nambo', lineInfo: 'KRL Cabang Nambo', statusText: 'Terminus Cabang · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+
+  // ── KRL CIKARANG ──
+  _StationItem(name: 'Cikarang', lineInfo: 'KRL Lin Cikarang Timur', statusText: 'Terminus Timur · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Metland Telagamurni', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cibitung', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tambun', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bekasi Timur', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bekasi', lineInfo: 'KRL Lin Cikarang', statusText: 'Transit Utama · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kranji', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cakung', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Klender Baru', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Buaran', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Klender', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jatinegara', lineInfo: 'KRL Lin Cikarang Loop & East', statusText: 'Transit Utama · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Matraman', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Sudirman', lineInfo: 'KRL Lin Cikarang & MRT', statusText: 'Transit Sudirman · 3 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: true, isAccessible: true),
+  _StationItem(name: 'BNI City', lineInfo: 'KRL Cikarang & Kereta Bandara', statusText: 'Transit Bandara · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Karet', lineInfo: 'KRL Lin Cikarang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tanah Abang', lineInfo: 'KRL Lin Cikarang & Rangkasbitung', statusText: 'Transit Utama · 4 menit', statusColor: AppColors.statusAmber, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Duri', lineInfo: 'KRL Lin Cikarang & Tangerang', statusText: 'Transit Tangerang · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Angke', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Terminus Loop · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kp. Bandan', lineInfo: 'KRL Lin Cikarang & Priok', statusText: 'Transit Loop Utara · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Rajawali', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kemayoran', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pasar Senen', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Stasiun Besar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Gang Sentiong', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kramat', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pondok Jati', lineInfo: 'KRL Lin Cikarang Loop', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+
+  // ── KRL TANGERANG ──
+  _StationItem(name: 'Grogol', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pesing', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Taman Kota', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bojong Indah', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Rawa Buaya', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kalideres', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Poris', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Batu Ceper', lineInfo: 'KRL Lin Tangerang & Airport', statusText: 'Transit Bandara · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tanah Tinggi', lineInfo: 'KRL Lin Tangerang', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tangerang', lineInfo: 'KRL Lin Tangerang', statusText: 'Terminus · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+
+  // ── KRL RANGKASBITUNG ──
+  _StationItem(name: 'Palmerah', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kebayoran', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pondok Ranji', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jurangmangu', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Sudimara', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Rawa Buntu', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Serpong', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cisauk', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cicayur', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Parung Panjang', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Stasiun Antara · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cilejit', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Daru', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 7 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tenjo', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 7 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tigaraksa', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cikoya', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Maja', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Stasiun Antara · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Citeras', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Lancar · 9 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Rangkasbitung', lineInfo: 'KRL Lin Rangkasbitung', statusText: 'Terminus Barat · 10 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+
+  // ── KRL TANJUNG PRIOK ──
+  _StationItem(name: 'Ancol', lineInfo: 'KRL Lin Tanjung Priok', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jakarta Int. Stadium', lineInfo: 'KRL Lin Tanjung Priok', statusText: 'Akses Stadium · 7 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Tanjung Priok', lineInfo: 'KRL Lin Tanjung Priok', statusText: 'Terminus Pelabuhan · 8 menit', statusColor: AppColors.statusGreen, isLrt: false, isKrl: true, isMrt: false, isAccessible: true),
+
+  // ── LRT JABODEBEK ──
+  _StationItem(name: 'Halim', lineInfo: 'LRT Jabodebek & KCIC Whoosh', statusText: 'Intermodal KCIC · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Dukuh Atas LRT', lineInfo: 'LRT Jabodebek (Bekasi & Cibubur)', statusText: 'Terminus LRT · 3 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Setiabudi LRT', lineInfo: 'LRT Jabodebek', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Rasuna Said', lineInfo: 'LRT Jabodebek', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kuningan', lineInfo: 'LRT Jabodebek', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pancoran', lineInfo: 'LRT Jabodebek', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cikoko', lineInfo: 'LRT Jabodebek & KRL Cawang', statusText: 'Transit Cawang · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: true, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Ciliwung', lineInfo: 'LRT Jabodebek', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jatibening Baru', lineInfo: 'LRT Jabodebek Lin Bekasi', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cikunir 1', lineInfo: 'LRT Jabodebek Lin Bekasi', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Cikunir 2', lineInfo: 'LRT Jabodebek Lin Bekasi', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Bekasi Barat', lineInfo: 'LRT Jabodebek Lin Bekasi', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Jati Mulya', lineInfo: 'LRT Jabodebek Lin Bekasi', statusText: 'Terminus Bekasi · 6 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Taman Mini', lineInfo: 'LRT Jabodebek Lin Cibubur', statusText: 'Lancar · 6 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Kampung Rambutan', lineInfo: 'LRT Jabodebek Lin Cibubur', statusText: 'Transit Terminal · 6 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Ciracas', lineInfo: 'LRT Jabodebek Lin Cibubur', statusText: 'Lancar · 7 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Harjamukti', lineInfo: 'LRT Jabodebek Lin Cibubur', statusText: 'Terminus Cibubur · 7 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+
+  // ── LRT JAKARTA ──
+  _StationItem(name: 'Pegangsaan Dua', lineInfo: 'LRT Jakarta', statusText: 'Depo & Terminus · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Boulevard Utara', lineInfo: 'LRT Jakarta', statusText: 'Akses Mal Kelapa Gading', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Boulevard Selatan', lineInfo: 'LRT Jakarta', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Pulomas', lineInfo: 'LRT Jakarta', statusText: 'Lancar · 4 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Equestrian', lineInfo: 'LRT Jakarta', statusText: 'Lancar · 5 menit', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
+  _StationItem(name: 'Velodrome', lineInfo: 'LRT Jakarta', statusText: 'Terminus Rawamangun', statusColor: AppColors.statusGreen, isLrt: true, isKrl: false, isMrt: false, isAccessible: true),
 ];
 
 /// Halaman Cari Stasiun (Screen 2 di Figma)
@@ -85,7 +179,7 @@ class SearchStationPage extends StatefulWidget {
 class _SearchStationPageState extends State<SearchStationPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedFilter = 'Semua';
+  String? _selectedFilter;
 
   @override
   void dispose() {
@@ -101,6 +195,9 @@ class _SearchStationPageState extends State<SearchStationPage> {
     final fromStation = uri.queryParameters['from'];
     final isSelectingDestination = action == 'select_destination';
 
+    final l10n = AppLocalizations.of(context)!;
+    _selectedFilter ??= l10n.all; // Default filter
+
     // Logika penyaringan stasiun
     final filteredStations = _allStations.where((station) {
       // 1. Filter stasiun asal agar tidak bisa dipilih sebagai stasiun tujuan
@@ -113,10 +210,11 @@ class _SearchStationPageState extends State<SearchStationPage> {
                             station.lineInfo.toLowerCase().contains(_searchQuery.toLowerCase());
 
       // 3. Filter berdasarkan tab layanan
-      final matchesFilter = _selectedFilter == 'Semua' ||
+      final matchesFilter = _selectedFilter == l10n.all ||
                             (_selectedFilter == 'LRT' && station.isLrt) ||
                             (_selectedFilter == 'KRL' && station.isKrl) ||
-                            (_selectedFilter == 'Aksesibel' && station.isAccessible);
+                            (_selectedFilter == 'MRT' && station.isMrt) ||
+                            (_selectedFilter == l10n.accessible && station.isAccessible);
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -141,9 +239,9 @@ class _SearchStationPageState extends State<SearchStationPage> {
                         children: [
                           GestureDetector(
                             onTap: () => context.go('/'),
-                            child: const Text(
-                              'Back',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.back,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 color: AppColors.primaryBlue,
                                 fontWeight: FontWeight.w500,
@@ -153,8 +251,8 @@ class _SearchStationPageState extends State<SearchStationPage> {
                           Expanded(
                             child: Text(
                               isSelectingDestination
-                                  ? 'Pilih stasiun tujuan'
-                                  : 'Cari stasiun',
+                                  ? l10n.selectDestination
+                                  : l10n.searchStationTitle,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 18,
@@ -190,7 +288,7 @@ class _SearchStationPageState extends State<SearchStationPage> {
                       Padding(
                         padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
                         child: Text(
-                          'Mulai perjalanan dari: $fromStation',
+                          l10n.startTripFrom(fromStation),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -210,11 +308,11 @@ class _SearchStationPageState extends State<SearchStationPage> {
                           });
                         },
                         decoration: InputDecoration(
-                          hintText: 'Ketik nama stasiun, jalur, atau area',
-                          prefixIcon: const Icon(Icons.search),
+                          hintText: l10n.searchStationHint,
+                          prefixIcon: const Icon(Icons.search_rounded),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear),
+                                  icon: const Icon(Icons.clear_rounded),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {
@@ -240,11 +338,11 @@ class _SearchStationPageState extends State<SearchStationPage> {
                     const SizedBox(height: 16),
 
                     // ── Filter Layanan ──
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Filter layanan',
-                        style: TextStyle(
+                        l10n.serviceFilter,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -256,13 +354,15 @@ class _SearchStationPageState extends State<SearchStationPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          _buildFilterChip('Semua'),
+                          _buildFilterChip(l10n.all),
                           const SizedBox(width: 8),
                           _buildFilterChip('LRT'),
                           const SizedBox(width: 8),
                           _buildFilterChip('KRL'),
                           const SizedBox(width: 8),
-                          _buildFilterChip('Aksesibel'),
+                          _buildFilterChip('MRT'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(l10n.accessible),
                         ],
                       ),
                     ),
@@ -270,11 +370,11 @@ class _SearchStationPageState extends State<SearchStationPage> {
                     const SizedBox(height: 20),
 
                     // ── Hasil Cepat ──
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Hasil cepat',
-                        style: TextStyle(
+                        l10n.quickResults,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -287,12 +387,12 @@ class _SearchStationPageState extends State<SearchStationPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: filteredStations.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 40),
+                                padding: const EdgeInsets.symmetric(vertical: 40),
                                 child: Text(
-                                  'Stasiun tidak ditemukan',
-                                  style: TextStyle(color: AppColors.textSecondary),
+                                  l10n.stationNotFound,
+                                  style: const TextStyle(color: AppColors.textSecondary),
                                 ),
                               ),
                             )
@@ -304,13 +404,8 @@ class _SearchStationPageState extends State<SearchStationPage> {
                                   statusText: station.statusText,
                                   statusColor: station.statusColor,
                                   onTap: () {
-                                    if (isSelectingDestination && fromStation != null) {
-                                      // Rute Tercepat
-                                      context.go('/rute?from=$fromStation&to=${station.name}');
-                                    } else {
-                                      // Pilih di Peta Utama
-                                      context.go('/?selected=${station.name}');
-                                    }
+                                    final fromQuery = fromStation != null ? '&from=$fromStation' : '';
+                                    context.go('/?selected=${station.name}$fromQuery');
                                   },
                                 );
                               }).toList(),
@@ -329,21 +424,21 @@ class _SearchStationPageState extends State<SearchStationPage> {
                           color: AppColors.a11yBannerBg,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Tanpa login',
-                              style: TextStyle(
+                              l10n.withoutLogin,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.a11yBannerText,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              'Favorit dan riwayat disimpan lokal di perangkat.',
-                              style: TextStyle(
+                              l10n.favoriteHistoryLocal,
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
                               ),
