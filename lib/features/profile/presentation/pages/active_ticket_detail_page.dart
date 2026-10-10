@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_notice.dart';
 import '../widgets/profile_detail_scaffold.dart';
 
 /// Detail tiket aktif yang tersimpan pada perangkat pengguna.
@@ -11,11 +12,11 @@ class ActiveTicketDetailPage extends StatelessWidget {
 
   void _shareTicket(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(l10n.activeTicketReadyShare)),
-      );
+    AppNotice.show(
+      context,
+      message: l10n.activeTicketReadyShare,
+      type: AppNoticeType.success,
+    );
   }
 
   @override
@@ -83,7 +84,10 @@ class ActiveTicketDetailPage extends StatelessWidget {
               child: Text(
                 l10n.activeTicketOfflineOnly,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -108,7 +112,7 @@ class _ActiveTicketSummary extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFEFF6FF),
+                  color: AppColors.primaryBlueLight,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -197,12 +201,17 @@ class _TicketCodeCard extends StatelessWidget {
           Text(
             AppLocalizations.of(context)!.activeTicketShowToStaff,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 18),
           Semantics(
             image: true,
-            label: AppLocalizations.of(context)!.activeTicketCodeSemantic('KRL-2407-0812'),
+            label: AppLocalizations.of(
+              context,
+            )!.activeTicketCodeSemantic('KRL-2407-0812'),
             child: Container(
               width: 164,
               height: 164,
@@ -299,7 +308,7 @@ class _InformationRow extends StatelessWidget {
         Flexible(
           child: Text(
             value,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.end,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 13,

@@ -1,72 +1,102 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../domain/entities/train_schedule.dart';
+import '../../domain/services/schedule_status.dart';
 import '../controllers/timetable_controller.dart';
 import '../widgets/schedule_card.dart';
+import '../../../search_station/data/datasources/station_remote_data_source.dart';
 
 class TimetablePage extends StatefulWidget {
-  const TimetablePage({super.key});
+  const TimetablePage({
+    super.key,
+    this.controller,
+    this.stationDataSource,
+    this.now,
+  });
+
+  final TimetableController? controller;
+  final StationRemoteDataSource? stationDataSource;
+  final DateTime Function()? now;
 
   @override
   State<TimetablePage> createState() => _TimetablePageState();
 }
 
 class _TimetablePageState extends State<TimetablePage> {
-  final TimetableController _controller = TimetableController();
-  late final List<TrainSchedule> _schedules;
-  
+  late final TimetableController _controller =
+      widget.controller ?? TimetableController();
+  late Future<List<TrainSchedule>> _schedulesFuture;
+  late DateTime _now;
+  Timer? _statusRefreshTimer;
+
   // State Filter
   String _searchQuery = '';
   String _selectedStationFilter = 'Semua Stasiun';
   String _selectedTypeFilter = 'Semua'; // 'Semua', 'KRL', 'LRT', 'MRT'
-  bool _isWeekendFilter = false; // false = Hari Kerja (Weekday), true = Akhir Pekan (Weekend)
+  bool _isWeekendFilter =
+      false; // false = Hari Kerja (Weekday), true = Akhir Pekan (Weekend)
 
   // Daftar Stasiun yang tersedia di peta skematik
-  final List<String> _stations = const [
-    'Semua Stasiun',
-    'Manggarai',
-    'Tanah Abang',
-    'Jakarta Kota',
-    'Jatinegara',
-    'Bekasi',
-    'Cikarang',
-    'Bogor',
-    'Depok',
-    'Citayam',
-    'Nambo',
-    'Rangkasbitung',
-    'Parung Panjang',
-    'Tangerang',
-    'Duri',
-    'Batu Ceper',
-    'Tanjung Priok',
-    'Setiabudi',
-    'Dukuh Atas',
-    'Bundaran HI',
-    'Lebak Bulus',
-    'Blok M',
-    'Cawang',
-    'Halim',
-    'Jati Mulya',
-    'Harjamukti',
-    'Pegangsaan Dua',
-    'Velodrome',
-  ];
+  List<String> _stations = ['Semua Stasiun'];
+  bool _stationCatalogUnavailable = false;
+  Future<void>? _stationCatalogRequest;
+
+  Future<void> _loadStationCatalog() => _stationCatalogRequest ??=
+      _fetchStationCatalog().whenComplete(() => _stationCatalogRequest = null);
+
+  Future<void> _fetchStationCatalog() async {
+    try {
+      final stations =
+          await (widget.stationDataSource ?? StationRemoteDataSource())
+              .getStations();
+      if (!mounted) return;
+      setState(() {
+        _stations = [
+          'Semua Stasiun',
+          ...stations.map((s) => s.name).toSet().toList()..sort(),
+        ];
+        _stationCatalogUnavailable = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _stationCatalogUnavailable = true);
+    }
+  }
 
   // Daftar Jenis Kereta
-  final List<String> _trainTypes = const [
-    'Semua',
-    'KRL',
-    'LRT',
-    'MRT',
-  ];
+  final List<String> _trainTypes = const ['Semua', 'KRL', 'LRT', 'MRT'];
+
+  DateTime _currentTime() => widget.now?.call() ?? DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _schedules = _controller.loadSchedules();
+    _now = _currentTime();
+    _loadSchedules();
+    unawaited(_loadStationCatalog());
+    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _now = _currentTime());
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _loadSchedules() {
+    if (_stationCatalogUnavailable) unawaited(_loadStationCatalog());
+    setState(() {
+      _schedulesFuture = _controller.loadSchedules(
+        station: _selectedStationFilter,
+        trainType: _selectedTypeFilter,
+        isWeekend: _isWeekendFilter,
+      );
+    });
   }
 
   Color _getTrainColor(String type) {
@@ -82,7 +112,9 @@ class _TimetablePageState extends State<TimetablePage> {
     }
   }
 
-  void _showStationPickerSheet() {
+  Future<void> _showStationPickerSheet() async {
+    if (_stations.length == 1) await _loadStationCatalog();
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -103,7 +135,12 @@ class _TimetablePageState extends State<TimetablePage> {
                 color: AppColors.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                20 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -131,13 +168,35 @@ class _TimetablePageState extends State<TimetablePage> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, size: 22, color: AppColors.textSecondary),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 22,
+                          color: AppColors.textSecondary,
+                        ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
+                  if (_stationCatalogUnavailable)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(l10n.scheduleStationCatalogError),
+                        ),
+                        TextButton.icon(
+                          onPressed: () async {
+                            await _loadStationCatalog();
+                            if (context.mounted) setSheetState(() {});
+                          },
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: Text(l10n.actionRetry),
+                        ),
+                      ],
+                    ),
                   // Search Box di Bottom Sheet
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -152,12 +211,21 @@ class _TimetablePageState extends State<TimetablePage> {
                       },
                       style: const TextStyle(fontSize: 13),
                       decoration: InputDecoration(
-                        icon: const Icon(Icons.search, size: 18, color: AppColors.textHint),
+                        icon: const Icon(
+                          Icons.search,
+                          size: 18,
+                          color: AppColors.textHint,
+                        ),
                         hintText: l10n.searchStationHint2,
-                        hintStyle: const TextStyle(fontSize: 13, color: AppColors.textHint),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textHint,
+                        ),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -166,34 +234,54 @@ class _TimetablePageState extends State<TimetablePage> {
                     child: ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: filteredStations.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.cardBorder),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, color: AppColors.cardBorder),
                       itemBuilder: (context, index) {
                         final station = filteredStations[index];
                         final isSelected = _selectedStationFilter == station;
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: Icon(
-                            station == 'Semua Stasiun' ? Icons.train_rounded : Icons.location_on_outlined,
-                            color: isSelected ? AppColors.primaryBlue : AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          title: Text(
-                            station,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                        return Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
                             ),
+                            leading: Icon(
+                              station == 'Semua Stasiun'
+                                  ? Icons.train_rounded
+                                  : Icons.location_on_outlined,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : AppColors.textSecondary,
+                              size: 20,
+                            ),
+                            title: Text(
+                              station,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? AppColors.primaryBlue
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                            trailing: isSelected
+                                ? const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: AppColors.primaryBlue,
+                                    size: 20,
+                                  )
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                _selectedStationFilter = station;
+                              });
+                              _loadSchedules();
+                              Navigator.pop(context);
+                            },
                           ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue, size: 20)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedStationFilter = station;
-                            });
-                            Navigator.pop(context);
-                          },
                         );
                       },
                     ),
@@ -210,37 +298,6 @@ class _TimetablePageState extends State<TimetablePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // Terapkan semua filter secara bertahap
-    final filteredSchedules = _schedules.where((schedule) {
-      // 1. Filter Hari Kerja / Akhir Pekan
-      if (schedule.isWeekend != _isWeekendFilter) return false;
-
-      // 2. Filter Stasiun Keberangkatan
-      if (_selectedStationFilter != 'Semua Stasiun' &&
-          schedule.stationName.toLowerCase() != _selectedStationFilter.toLowerCase()) {
-        return false;
-      }
-
-      // 3. Filter Jenis Kereta (KRL/LRT/MRT)
-      if (_selectedTypeFilter != 'Semua' &&
-          schedule.trainType.toUpperCase() != _selectedTypeFilter.toUpperCase()) {
-        return false;
-      }
-
-      // 4. Filter Pencarian Text (Cari Rute atau Nama Kereta)
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        final matchName = schedule.trainName.toLowerCase().contains(query);
-        final matchRoute = schedule.route.toLowerCase().contains(query);
-        final matchStation = schedule.stationName.toLowerCase().contains(query);
-        return matchName || matchRoute || matchStation;
-      }
-
-      return true;
-    }).toList();
-
-    // Urutkan jadwal berdasarkan waktu keberangkatan
-    filteredSchedules.sort((a, b) => a.departureTime.compareTo(b.departureTime));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -279,7 +336,7 @@ class _TimetablePageState extends State<TimetablePage> {
                           ),
                         ],
                       ),
-                      
+
                       // Segmented Switch Day Filter
                       Container(
                         padding: const EdgeInsets.all(3),
@@ -291,11 +348,19 @@ class _TimetablePageState extends State<TimetablePage> {
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => setState(() => _isWeekendFilter = false),
+                              onTap: () {
+                                setState(() => _isWeekendFilter = false);
+                                _loadSchedules();
+                              },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: !_isWeekendFilter ? AppColors.primaryBlue : Colors.transparent,
+                                  color: !_isWeekendFilter
+                                      ? AppColors.primaryBlue
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
@@ -303,17 +368,27 @@ class _TimetablePageState extends State<TimetablePage> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: !_isWeekendFilter ? Colors.white : AppColors.textSecondary,
+                                    color: !_isWeekendFilter
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => setState(() => _isWeekendFilter = true),
+                              onTap: () {
+                                setState(() => _isWeekendFilter = true);
+                                _loadSchedules();
+                              },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _isWeekendFilter ? AppColors.primaryBlue : Colors.transparent,
+                                  color: _isWeekendFilter
+                                      ? AppColors.primaryBlue
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
@@ -321,7 +396,9 @@ class _TimetablePageState extends State<TimetablePage> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: _isWeekendFilter ? Colors.white : AppColors.textSecondary,
+                                    color: _isWeekendFilter
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -343,7 +420,11 @@ class _TimetablePageState extends State<TimetablePage> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.search, color: AppColors.textHint, size: 18),
+                        const Icon(
+                          Icons.search,
+                          color: AppColors.textHint,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
@@ -355,10 +436,15 @@ class _TimetablePageState extends State<TimetablePage> {
                             style: const TextStyle(fontSize: 13),
                             decoration: InputDecoration(
                               hintText: l10n.searchDestinationHint,
-                              hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
+                              hintStyle: const TextStyle(
+                                color: AppColors.textHint,
+                                fontSize: 13,
+                              ),
                               border: InputBorder.none,
                               isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                              ),
                             ),
                           ),
                         ),
@@ -369,7 +455,11 @@ class _TimetablePageState extends State<TimetablePage> {
                                 _searchQuery = '';
                               });
                             },
-                            child: const Icon(Icons.clear, color: AppColors.textHint, size: 16),
+                            child: const Icon(
+                              Icons.clear,
+                              color: AppColors.textHint,
+                              size: 16,
+                            ),
                           ),
                       ],
                     ),
@@ -400,19 +490,28 @@ class _TimetablePageState extends State<TimetablePage> {
                         final typeColor = _getTrainColor(type);
                         return Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _selectedTypeFilter = type),
+                            onTap: () {
+                              setState(() => _selectedTypeFilter = type);
+                              _loadSchedules();
+                            },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? (type == 'Semua' ? AppColors.primaryBlue : typeColor)
+                                    ? (type == 'Semua'
+                                          ? AppColors.primaryBlue
+                                          : typeColor)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: (type == 'Semua' ? AppColors.primaryBlue : typeColor).withValues(alpha: 0.25),
+                                          color:
+                                              (type == 'Semua'
+                                                      ? AppColors.primaryBlue
+                                                      : typeColor)
+                                                  .withValues(alpha: 0.25),
                                           blurRadius: 6,
                                           offset: const Offset(0, 2),
                                         ),
@@ -424,8 +523,12 @@ class _TimetablePageState extends State<TimetablePage> {
                                   type == 'Semua' ? l10n.all : type,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -442,7 +545,10 @@ class _TimetablePageState extends State<TimetablePage> {
                   GestureDetector(
                     onTap: _showStationPickerSheet,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: _selectedStationFilter != 'Semua Stasiun'
                             ? AppColors.primaryBlueLight
@@ -473,7 +579,8 @@ class _TimetablePageState extends State<TimetablePage> {
                                   : l10n.originStation(_selectedStationFilter),
                               style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: _selectedStationFilter != 'Semua Stasiun'
+                                fontWeight:
+                                    _selectedStationFilter != 'Semua Stasiun'
                                     ? FontWeight.w800
                                     : FontWeight.w600,
                                 color: _selectedStationFilter != 'Semua Stasiun'
@@ -489,6 +596,7 @@ class _TimetablePageState extends State<TimetablePage> {
                                 setState(() {
                                   _selectedStationFilter = 'Semua Stasiun';
                                 });
+                                _loadSchedules();
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(2),
@@ -520,8 +628,80 @@ class _TimetablePageState extends State<TimetablePage> {
 
             // ── Schedule List ──
             Expanded(
-              child: filteredSchedules.isEmpty
-                  ? Center(
+              child: FutureBuilder<List<TrainSchedule>>(
+                future: _schedulesFuture,
+                builder: (context, snapshot) {
+                  // Loading state
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // Error state — timeout/cold-start is not treated as empty data.
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.cloud_queue_rounded,
+                              size: 48,
+                              color: AppColors.textHint.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              l10n.scheduleServerActive,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              l10n.scheduleBackendError,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: _loadSchedules,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: Text(l10n.actionRetry),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Data state — apply text search filter client-side
+                  final raw = snapshot.data ?? <TrainSchedule>[];
+                  final matchingSchedules = _searchQuery.isEmpty
+                      ? raw
+                      : raw.where((schedule) {
+                          final query = _searchQuery.toLowerCase();
+                          return schedule.trainName.toLowerCase().contains(
+                                query,
+                              ) ||
+                              schedule.route.toLowerCase().contains(query) ||
+                              schedule.stationName.toLowerCase().contains(
+                                query,
+                              );
+                        });
+                  final filteredSchedules =
+                      ScheduleStatusCalculator.orderByRelevance(
+                        schedules: matchingSchedules,
+                        now: _now,
+                      );
+
+                  if (filteredSchedules.isEmpty) {
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -549,15 +729,62 @@ class _TimetablePageState extends State<TimetablePage> {
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredSchedules.length,
-                      itemBuilder: (context, index) {
-                        return ScheduleCard(schedule: filteredSchedules[index]);
-                      },
-                    ),
+                    );
+                  }
+
+                  final nextUpcomingIndex = filteredSchedules.indexWhere((
+                    schedule,
+                  ) {
+                    final status = ScheduleStatusCalculator.calculate(
+                      schedule: schedule,
+                      now: _now,
+                      l10n: l10n,
+                    );
+                    return !status.hasDeparted &&
+                        status.kind != ScheduleStatusKind.unavailable;
+                  });
+
+                  return ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredSchedules.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${l10n.scheduleDatasetNote}${_selectedStationFilter == 'Semua Stasiun' ? '\n${l10n.scheduleAllServicesNote}' : ''}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final scheduleIndex = index - 1;
+                      return ScheduleCard(
+                        schedule: filteredSchedules[scheduleIndex],
+                        now: _now,
+                        isNextUpcoming: scheduleIndex == nextUpcomingIndex,
+                      );
+                    },
+                  );
+                },
+              ),
             ),
 
             // ── Bottom Navigation Bar ──

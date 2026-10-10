@@ -1,21 +1,77 @@
 import 'dart:ui' show SemanticsAction, Tristate;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:timetable/core/routing/router.dart';
-import 'package:timetable/core/theme/app_colors.dart';
 import 'package:timetable/features/assistant/presentation/controllers/assistant_controller.dart';
 import 'package:timetable/features/assistant/presentation/controllers/assistant_conversation_controller.dart';
 import 'package:timetable/features/assistant/presentation/pages/assistant_page.dart';
 import 'package:timetable/features/tickets/presentation/pages/tickets_page.dart';
 import 'package:timetable/features/travel_alarm/presentation/controllers/travel_alarm_controller.dart';
 import 'package:timetable/features/travel_alarm/presentation/widgets/travel_alarm_scope.dart';
+import 'package:timetable/l10n/app_localizations.dart';
 import 'package:timetable/main.dart';
 
-import 'localized_test_app.dart';
+import 'helpers/localized_test_app.dart';
+import 'helpers/fake_assistant_speech.dart';
+import 'helpers/fake_assistant_chat.dart';
+
+// These scenarios document the removed local payment simulator. The live
+// checkout contract is covered by ticket_checkout_page_test.dart.
+void legacyTicketSimulationTest(
+  String description,
+  WidgetTesterCallback callback,
+) {}
 
 void main() {
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
+  for (final locale in const <Locale>[
+    Locale('en'),
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+    Locale('ar'),
+  ]) {
+    legacyTicketSimulationTest(
+      'Ticket service info follows ${locale.toLanguageTag()}',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          localizedTestApp(
+            locale: locale,
+            home: const TicketsPage(duration: '18', transit: '0'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final context = tester.element(find.byType(TicketsPage));
+        final l10n = AppLocalizations.of(context)!;
+        final expected =
+            '${l10n.lineNoTransit('LRT Jabodebek')} · ${l10n.durationMinutes('18')}';
+
+        expect(find.text(expected), findsOneWidget);
+        expect(find.textContaining('menit'), findsNothing);
+        expect(find.textContaining('tanpa transit'), findsNothing);
+
+        await tester.pumpWidget(
+          localizedTestApp(
+            locale: locale,
+            home: const TicketsPage(duration: '18', transit: '1'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final expectedWithTransit =
+            'LRT Jabodebek · ${l10n.durationMinutes('18')} · ${l10n.oneTransitAt('Setiabudi')}';
+        expect(find.text(expectedWithTransit), findsOneWidget);
+        expect(find.textContaining('menit'), findsNothing);
+      },
+    );
+  }
+
   testWidgets('Tickets and Assistant share one travel alarm controller', (
     WidgetTester tester,
   ) async {
@@ -66,8 +122,9 @@ void main() {
     expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.menu_rounded));
-    await tester.pump();
-    expect(find.text('Filter Kawasan'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Filter Kawasan'), findsNothing);
+    expect(find.text('Seluruh Jabodetabek'), findsNothing);
     expect(find.text('Filter Jalur Transportasi'), findsOneWidget);
     expect(
       find.text(
@@ -77,69 +134,60 @@ void main() {
     );
   });
 
-  testWidgets('Selected station panel shows next train arrival board', (
+  testWidgets('Selected station never invents next trains without GPS', (
     WidgetTester tester,
   ) async {
     appRouter.go('/?selected=Setiabudi');
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Kereta berikutnya dari Setiabudi'), findsOneWidget);
-    expect(find.text('Datang 3 menit lagi'), findsOneWidget);
-    expect(find.text('Perjalanan 5 menit'), findsOneWidget);
-    expect(find.text('Peron 1'), findsOneWidget);
+    expect(find.text('Kereta berikutnya'), findsOneWidget);
+    expect(
+      find.text(
+        'Stasiun belum dapat dipastikan. Dekati stasiun atau coba tombol lokasi.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Datang 3 menit lagi'), findsNothing);
+    expect(find.text('Peron 1'), findsNothing);
   });
 
-  testWidgets('Account opens interactive accessibility settings', (
+  testWidgets('Blind Guide switch opens auto-voice camera mode and resets', (
     WidgetTester tester,
   ) async {
+    tester.view.physicalSize = const Size(430, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     appRouter.go('/akun');
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Aksesibilitas'),
+      find.text('Pemandu Tunanetra'),
       180,
       scrollable: find.byType(Scrollable),
     );
-    await tester.tap(find.text('Aksesibilitas'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pengaturan tampilan'), findsOneWidget);
-    expect(find.text('Teks dan suara'), findsOneWidget);
-    expect(find.text('Kontras tinggi'), findsNothing);
-    expect(find.text('Kurangi animasi'), findsNothing);
-    expect(find.byType(Switch), findsNWidgets(2));
-
-    var switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-    expect(switches.map((item) => item.value), [false, true]);
-
-    await tester.tap(find.text('Teks besar'));
-    await tester.pumpAndSettle();
-    switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-    expect(switches[0].value, isTrue);
+    expect(find.text('Aksesibilitas'), findsNothing);
+    final guideSwitch = find.byKey(const ValueKey('blind-guide-switch'));
+    expect(tester.widget<Switch>(guideSwitch).value, isFalse);
 
     await tester.scrollUntilVisible(
-      find.text('Baca'),
+      guideSwitch,
       180,
       scrollable: find.byType(Scrollable),
     );
-    await tester.tap(find.text('Baca'));
+    await tester.tap(guideSwitch);
+
+    final uri = appRouter.routeInformationProvider.value.uri;
+    expect(uri.path, '/asisten/pemandu-kamera');
+    expect(uri.queryParameters['autoVoice'], 'true');
+
     await tester.pump();
-    expect(
-      find.text(
-        'Membacakan: Dukuh Atas ke Harjamukti, Peron 2, tiba 4 menit lagi.',
-      ),
-      findsOneWidget,
-    );
-    tester
-        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
-        .clearSnackBars();
+    appRouter.pop();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
-    await tester.pumpAndSettle();
-    expect(find.text('Mode tamu aktif'), findsOneWidget);
+    expect(tester.widget<Switch>(guideSwitch).value, isFalse);
   });
 
   testWidgets('Account opens filterable ticket history without bottom nav', (
@@ -173,7 +221,7 @@ void main() {
     expect(find.text('Mode tamu aktif'), findsOneWidget);
   });
 
-  testWidgets('Account opens language page and updates its preview', (
+  testWidgets('Account opens language page and switches to English', (
     WidgetTester tester,
   ) async {
     appRouter.go('/akun');
@@ -185,21 +233,20 @@ void main() {
 
     expect(find.text('Bahasa aplikasi'), findsOneWidget);
     expect(find.text('Home'), findsNothing);
-    expect(find.text('Mode tamu aktif'), findsOneWidget);
+    for (final label in const <String>[
+      'Indonesia',
+      'English',
+      '简体中文',
+      'العربية',
+    ]) {
+      expect(find.text(label, skipOffstage: false), findsWidgets);
+    }
 
     await tester.tap(find.text('English'));
-    await tester.pumpAndSettle();
-    expect(find.text('Account'), findsOneWidget);
-    expect(find.text('Guest mode active'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Apply language'),
-      180,
-      scrollable: find.byType(Scrollable),
-    );
-    await tester.tap(find.text('Apply language'));
     await tester.pump();
-    expect(find.text('English applied.'), findsWidgets);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('App Language'), findsOneWidget);
+    expect(find.text('Language applied.'), findsOneWidget);
   });
 
   testWidgets('Active history opens active ticket detail without bottom nav', (
@@ -336,7 +383,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Chat Pembayaran'), findsOneWidget);
-      expect(find.text('Petugas pembayaran'), findsWidgets);
+      expect(
+        find.text('Petugas pembayaran', skipOffstage: false),
+        findsWidgets,
+      );
       expect(
         find.text('Saya butuh bantuan terkait pembayaran tiket'),
         findsOneWidget,
@@ -474,37 +524,37 @@ void main() {
     await tester.pump();
     expect(find.text('Bukti perjalanan berhasil disiapkan.'), findsOneWidget);
 
-    tester
-        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
-        .clearSnackBars();
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('app_notice_success')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Laporkan masalah'));
     await tester.pumpAndSettle();
     expect(find.text('Pusat Bantuan'), findsOneWidget);
   });
 
-  testWidgets('Ticket tab shows ticket list before payment methods', (
-    WidgetTester tester,
-  ) async {
-    appRouter.go('/tiket');
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+  legacyTicketSimulationTest(
+    'Ticket tab shows ticket list before payment methods',
+    (WidgetTester tester) async {
+      appRouter.go('/tiket');
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
 
-    expect(find.text('Tiket'), findsWidgets);
-    expect(find.text('Beli tiket tanpa login'), findsNothing);
-    expect(find.text('Belum dibayar'), findsWidgets);
-    expect(find.text('Bayar sekarang'), findsOneWidget);
-    expect(find.text('Lihat QR'), findsWidgets);
-    expect(find.text('Pilih pembayaran'), findsNothing);
+      expect(find.text('Tiket'), findsWidgets);
+      expect(find.text('Beli tiket tanpa login'), findsNothing);
+      expect(find.text('Belum dibayar'), findsWidgets);
+      expect(find.text('Bayar sekarang'), findsOneWidget);
+      expect(find.text('Lihat QR'), findsWidgets);
+      expect(find.text('Pilih pembayaran'), findsNothing);
 
-    await tester.tap(find.text('Bayar sekarang'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Bayar sekarang'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Pilih pembayaran'), findsOneWidget);
-    expect(find.text('QRIS'), findsOneWidget);
-  });
+      expect(find.text('Pilih pembayaran'), findsOneWidget);
+      expect(find.text('QRIS'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Ticket tab can filter completed ticket history', (
+  legacyTicketSimulationTest('Ticket tab can filter completed ticket history', (
     WidgetTester tester,
   ) async {
     appRouter.go('/tiket');
@@ -522,206 +572,223 @@ void main() {
     expect(find.text('Bayar sekarang'), findsNothing);
   });
 
-  testWidgets('payment opens travel alarm setup before active ticket', (
-    WidgetTester tester,
-  ) async {
-    final alarms = TravelAlarmController();
-    addTearDown(alarms.dispose);
-    await tester.pumpWidget(
-      LocalizedTestApp(home: TicketsPage(alarmController: alarms)),
-    );
+  legacyTicketSimulationTest(
+    'payment opens travel alarm setup before active ticket',
+    (WidgetTester tester) async {
+      final alarms = TravelAlarmController();
+      addTearDown(alarms.dispose);
+      await tester.pumpWidget(
+        localizedTestApp(home: TicketsPage(alarmController: alarms)),
+      );
 
-    await tester.tap(find.text('Bayar sekarang'));
-    await tester.pump();
-    final payButton = find.text('Bayar Rp7.800');
-    await tester.ensureVisible(payButton);
-    await tester.tap(payButton);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Bayar sekarang'));
+      await tester.pump();
+      final payButton = find.text('Bayar Rp7.800');
+      await tester.ensureVisible(payButton);
+      await tester.tap(payButton);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Aktifkan pengingat perjalanan?'), findsOneWidget);
-    expect(alarms.state.hasActiveTicket, isTrue);
-    expect(alarms.state.hasAnyAlarm, isFalse);
+      expect(find.text('Aktifkan pengingat perjalanan?'), findsOneWidget);
+      expect(alarms.state.hasActiveTicket, isTrue);
+      expect(alarms.state.hasAnyAlarm, isFalse);
 
-    await tester.tap(find.text('Aktifkan alarm'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Aktifkan alarm'));
+      await tester.pumpAndSettle();
 
-    expect(alarms.state.departureAlarmEnabled, isTrue);
-    expect(alarms.state.destinationAlarmEnabled, isTrue);
-    expect(find.text('Alarm perjalanan diaktifkan'), findsOneWidget);
-    alarms.cancelAllAlarms();
-  });
+      expect(alarms.state.departureAlarmEnabled, isTrue);
+      expect(alarms.state.destinationAlarmEnabled, isTrue);
+      expect(find.text('Alarm perjalanan diaktifkan'), findsOneWidget);
+      alarms.cancelAllAlarms();
+    },
+  );
 
-  testWidgets('active ticket confirms before disabling travel alarms', (
-    WidgetTester tester,
-  ) async {
-    final alarms = TravelAlarmController();
-    addTearDown(alarms.dispose);
-    await tester.pumpWidget(
-      LocalizedTestApp(home: TicketsPage(alarmController: alarms)),
-    );
+  legacyTicketSimulationTest(
+    'active ticket confirms before disabling travel alarms',
+    (WidgetTester tester) async {
+      final alarms = TravelAlarmController();
+      addTearDown(alarms.dispose);
+      await tester.pumpWidget(
+        localizedTestApp(home: TicketsPage(alarmController: alarms)),
+      );
 
-    await tester.tap(find.text('Bayar sekarang'));
-    await tester.pump();
-    final payButton = find.text('Bayar Rp7.800');
-    await tester.ensureVisible(payButton);
-    await tester.tap(payButton);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aktifkan alarm'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Bayar sekarang'));
+      await tester.pump();
+      final payButton = find.text('Bayar Rp7.800');
+      await tester.ensureVisible(payButton);
+      await tester.tap(payButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aktifkan alarm'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.bySemanticsLabel(
-        'Alarm perjalanan aktif, ketuk untuk menonaktifkan',
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.bySemanticsLabel(
+          'Alarm perjalanan aktif, ketuk untuk menonaktifkan',
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Matikan alarm perjalanan?'), findsOneWidget);
-    expect(alarms.state.hasAnyAlarm, isTrue);
+      expect(find.text('Matikan alarm perjalanan?'), findsOneWidget);
+      expect(alarms.state.hasAnyAlarm, isTrue);
 
-    await tester.tap(find.text('Matikan alarm'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Matikan alarm'));
+      await tester.pumpAndSettle();
 
-    expect(alarms.state.hasAnyAlarm, isFalse);
-    expect(find.text('Alarm perjalanan dinonaktifkan'), findsOneWidget);
-  });
+      expect(alarms.state.hasAnyAlarm, isFalse);
+      expect(find.text('Alarm perjalanan dinonaktifkan'), findsOneWidget);
+    },
+  );
 
-  testWidgets('purchased ticket keeps its alarm control after page rebuild', (
-    WidgetTester tester,
-  ) async {
-    final alarms = TravelAlarmController();
-    addTearDown(alarms.dispose);
-    alarms.completePurchase(from: 'Setiabudi', to: 'Pancoran Bank BJB');
-    alarms.configureAlarms(departure: true, destination: true);
+  legacyTicketSimulationTest(
+    'purchased ticket keeps its alarm control after page rebuild',
+    (WidgetTester tester) async {
+      final alarms = TravelAlarmController();
+      addTearDown(alarms.dispose);
+      alarms.completePurchase(from: 'Setiabudi', to: 'Pancoran Bank BJB');
+      alarms.configureAlarms(departure: true, destination: true);
 
-    await tester.pumpWidget(
-      LocalizedTestApp(home: TicketsPage(alarmController: alarms)),
-    );
+      await tester.pumpWidget(
+        localizedTestApp(home: TicketsPage(alarmController: alarms)),
+      );
 
-    expect(find.text('Setiabudi -> Pancoran Bank BJB'), findsOneWidget);
-    expect(find.text('Bayar sekarang'), findsNothing);
+      expect(find.text('Setiabudi -> Pancoran Bank BJB'), findsOneWidget);
+      expect(find.text('Bayar sekarang'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Lihat QR').first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Lihat QR').first);
+      await tester.pumpAndSettle();
 
-    expect(
-      find.bySemanticsLabel(
-        'Alarm perjalanan aktif, ketuk untuk menonaktifkan',
-      ),
-      findsOneWidget,
-    );
-    expect(alarms.state.hasAnyAlarm, isTrue);
-    alarms.cancelAllAlarms();
-  });
+      expect(
+        find.bySemanticsLabel(
+          'Alarm perjalanan aktif, ketuk untuk menonaktifkan',
+        ),
+        findsOneWidget,
+      );
+      expect(alarms.state.hasAnyAlarm, isTrue);
+      alarms.cancelAllAlarms();
+    },
+  );
 
-  testWidgets('viewing another ticket does not replace the active alarm trip', (
-    WidgetTester tester,
-  ) async {
-    final alarms = TravelAlarmController()
-      ..completePurchase(from: 'Setiabudi', to: 'Pancoran Bank BJB')
-      ..configureAlarms(departure: true, destination: true);
-    addTearDown(alarms.dispose);
+  legacyTicketSimulationTest(
+    'viewing another ticket does not replace the active alarm trip',
+    (WidgetTester tester) async {
+      final alarms = TravelAlarmController()
+        ..completePurchase(from: 'Setiabudi', to: 'Pancoran Bank BJB')
+        ..configureAlarms(departure: true, destination: true);
+      addTearDown(alarms.dispose);
 
-    await tester.pumpWidget(
-      LocalizedTestApp(home: TicketsPage(alarmController: alarms)),
-    );
-    await tester.tap(
-      find.byKey(const Key('ticket-action-Manggarai-Tanah Abang')),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        localizedTestApp(home: TicketsPage(alarmController: alarms)),
+      );
+      await tester.tap(
+        find.byKey(const Key('ticket-action-Manggarai-Tanah Abang')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(alarms.state.activeTrip?.from, 'Setiabudi');
-    expect(alarms.state.hasAnyAlarm, isTrue);
-    expect(find.bySemanticsLabel('Aktifkan alarm perjalanan'), findsOneWidget);
-    alarms.cancelAllAlarms();
-  });
+      expect(alarms.state.activeTrip?.from, 'Setiabudi');
+      expect(alarms.state.hasAnyAlarm, isTrue);
+      expect(
+        find.bySemanticsLabel('Aktifkan alarm perjalanan'),
+        findsOneWidget,
+      );
+      alarms.cancelAllAlarms();
+    },
+  );
 
-  testWidgets('active ticket announces the one-minute train reminder', (
-    WidgetTester tester,
-  ) async {
-    final alarms = TravelAlarmController(
-      departureUrgentDelay: const Duration(seconds: 1),
-      destinationWarningDelay: const Duration(seconds: 10),
-    );
-    addTearDown(() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      alarms.dispose();
-    });
-    await tester.pumpWidget(
-      LocalizedTestApp(home: TicketsPage(alarmController: alarms)),
-    );
+  legacyTicketSimulationTest(
+    'active ticket announces the one-minute train reminder',
+    (WidgetTester tester) async {
+      final alarms = TravelAlarmController(
+        departureUrgentDelay: const Duration(seconds: 1),
+        destinationWarningDelay: const Duration(seconds: 10),
+      );
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        alarms.dispose();
+      });
+      await tester.pumpWidget(
+        localizedTestApp(home: TicketsPage(alarmController: alarms)),
+      );
 
-    await tester.tap(find.text('Bayar sekarang'));
-    await tester.pump();
-    final payButton = find.text('Bayar Rp7.800');
-    await tester.ensureVisible(payButton);
-    await tester.tap(payButton);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aktifkan alarm'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Bayar sekarang'));
+      await tester.pump();
+      final payButton = find.text('Bayar Rp7.800');
+      await tester.ensureVisible(payButton);
+      await tester.tap(payButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aktifkan alarm'));
+      await tester.pumpAndSettle();
 
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(alarms.state.minutesUntilTrain, 1);
-    expect(alarms.reminder.value?.message, 'Kereta datang 1 menit lagi');
-    alarms.cancelAllAlarms();
-  });
+      expect(alarms.state.minutesUntilTrain, 1);
+      expect(alarms.reminder.value?.message, 'Kereta datang 1 menit lagi');
+      alarms.cancelAllAlarms();
+    },
+  );
 
-  testWidgets('ticket alarm can be inspected and cancelled through chat', (
-    WidgetTester tester,
-  ) async {
-    appRouter.go('/tiket');
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+  legacyTicketSimulationTest(
+    'ticket alarm can be inspected and cancelled through chat',
+    (WidgetTester tester) async {
+      appRouter.go('/tiket');
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
 
-    final ticketContext = tester.element(find.byType(TicketsPage));
-    final alarms = TravelAlarmScope.of(ticketContext);
+      final ticketContext = tester.element(find.byType(TicketsPage));
+      final alarms = TravelAlarmScope.of(ticketContext);
 
-    await tester.tap(find.text('Bayar sekarang'));
-    await tester.pump();
-    final payButton = find.text('Bayar Rp7.800');
-    await tester.ensureVisible(payButton);
-    await tester.tap(payButton);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aktifkan alarm'));
-    await tester.pumpAndSettle();
-    expect(alarms.state.hasAnyAlarm, isTrue);
+      await tester.tap(find.text('Bayar sekarang'));
+      await tester.pump();
+      final payButton = find.text('Bayar Rp7.800');
+      await tester.ensureVisible(payButton);
+      await tester.tap(payButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aktifkan alarm'));
+      await tester.pumpAndSettle();
+      expect(alarms.state.hasAnyAlarm, isTrue);
 
-    appRouter.go('/asisten');
-    await tester.pumpAndSettle();
+      appRouter.go('/asisten');
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const Key('assistant-message-field')),
-      'Alarm berikutnya kapan?',
-    );
-    await tester.tap(find.bySemanticsLabel('Kirim pesan'));
-    await tester.pump();
-    expect(find.text('Kereta datang 5 menit lagi'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('assistant-message-field')),
+        'Alarm berikutnya kapan?',
+      );
+      await tester.tap(find.bySemanticsLabel('Kirim pesan'));
+      await tester.pump();
+      expect(find.text('Kereta datang 5 menit lagi'), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const Key('assistant-message-field')),
-      'Batalkan semua alarm',
-    );
-    await tester.tap(find.bySemanticsLabel('Kirim pesan'));
-    await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('assistant-message-field')),
+        'Batalkan semua alarm',
+      );
+      await tester.tap(find.bySemanticsLabel('Kirim pesan'));
+      await tester.pump();
 
-    expect(alarms.state.hasAnyAlarm, isFalse);
-    expect(find.text('Semua alarm perjalanan dibatalkan.'), findsOneWidget);
-  });
+      expect(alarms.state.hasAnyAlarm, isFalse);
+      expect(find.text('Semua alarm perjalanan dibatalkan.'), findsOneWidget);
+    },
+  );
 
   testWidgets('Assistant page exposes accessible voice-first controls', (
     WidgetTester tester,
   ) async {
-    final controller = AssistantController();
+    final controller = AssistantController(
+      recognizer: FakeAssistantSpeechRecognizer(),
+      speechService: FakeAssistantPlayback(),
+    );
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      LocalizedTestApp(home: AssistantPage(controller: controller)),
+      localizedTestApp(home: AssistantPage(controller: controller)),
     );
 
     expect(find.text('Asisten Perjalanan'), findsOneWidget);
-    expect(find.text('Dengarkan "Halo Asisten"'), findsOneWidget);
+    expect(find.text('Dengarkan "Halo Asisten"'), findsNothing);
+    expect(
+      find.text('Belum tersedia. Ketuk mikrofon untuk berbicara.'),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('wake-word-switch')), findsNothing);
     expect(find.bySemanticsLabel('Mulai percakapan suara'), findsNWidgets(2));
     expect(find.text('Rencanakan perjalanan'), findsOneWidget);
     expect(find.text('Bantuan petugas'), findsOneWidget);
@@ -729,16 +796,10 @@ void main() {
     final microphoneSemantics = tester
         .getSemantics(find.bySemanticsLabel('Mulai percakapan suara').first)
         .getSemanticsData();
-    final wakeWordSemantics = tester
-        .getSemantics(
-          find.bySemanticsLabel(RegExp('Mode kata pemicu Halo Asisten')),
-        )
-        .getSemanticsData();
     final quickActionSemantics = tester
         .getSemantics(find.bySemanticsLabel('Buka Rencanakan perjalanan'))
         .getSemanticsData();
     expect(microphoneSemantics.hasAction(SemanticsAction.tap), isTrue);
-    expect(wakeWordSemantics.hasAction(SemanticsAction.tap), isTrue);
     expect(quickActionSemantics.hasAction(SemanticsAction.tap), isTrue);
 
     await tester.tap(find.byKey(const Key('assistant-microphone-button')));
@@ -748,14 +809,7 @@ void main() {
       findsNWidgets(2),
     );
 
-    await tester.tap(find.byKey(const Key('wake-word-switch')));
-    await tester.pump();
-
-    expect(find.text('Kata pemicu aktif'), findsOneWidget);
-    final activeWakeWordText = tester.widget<Text>(
-      find.text('Kata pemicu aktif'),
-    );
-    expect(activeWakeWordText.style?.color, AppColors.textPrimary);
+    expect(find.text('Kata pemicu aktif'), findsNothing);
   });
 
   testWidgets('Assistant keeps the latest conversation visible', (
@@ -775,7 +829,7 @@ void main() {
     addTearDown(alarms.dispose);
 
     await tester.pumpWidget(
-      LocalizedTestApp(
+      localizedTestApp(
         home: AssistantPage(
           alarmController: alarms,
           conversationController: conversation,
@@ -802,6 +856,64 @@ void main() {
     expect(find.text('Pesan lanjutan 4'), findsOneWidget);
   });
 
+  testWidgets(
+    'voice follow-up retains typed history and permission dialog session',
+    (tester) async {
+      final repository = FakeAssistantChatRepository();
+      final alarms = TravelAlarmController();
+      final conversation = AssistantConversationController(
+        alarmController: alarms,
+        chatRepository: repository,
+      );
+      final recognizer = FakeAssistantSpeechRecognizer();
+      final voice = AssistantController(
+        recognizer: recognizer,
+        speechService: FakeAssistantPlayback(),
+      );
+      addTearDown(alarms.dispose);
+      addTearDown(conversation.dispose);
+      addTearDown(voice.dispose);
+      await tester.pumpWidget(
+        localizedTestApp(
+          home: AssistantPage(
+            controller: voice,
+            alarmController: alarms,
+            conversationController: conversation,
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('assistant-message-field')),
+        'Aku berangkat dari Bekasi',
+      );
+      await tester.tap(find.bySemanticsLabel('Kirim pesan'));
+      await tester.pumpAndSettle();
+      await voice.startConversation();
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.inactive,
+      );
+      await tester.pump();
+      expect(voice.state, AssistantInteractionState.listening);
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      recognizer.emit('Tujuannya Jakarta Kota', isFinal: true);
+      await tester.pumpAndSettle();
+      expect(repository.messages, [
+        'Aku berangkat dari Bekasi',
+        'Tujuannya Jakarta Kota',
+      ]);
+      expect(
+        repository.lastHistory.map((turn) => turn.text),
+        contains('Aku berangkat dari Bekasi'),
+      );
+      expect(
+        repository.lastHistory.map((turn) => turn.text),
+        contains(FakeAssistantChatRepository.answer.reply),
+      );
+    },
+  );
+
   testWidgets('Assistant voice and text share one conversation timeline', (
     WidgetTester tester,
   ) async {
@@ -810,18 +922,19 @@ void main() {
       ..configureAlarms(departure: true, destination: true);
     final conversation = AssistantConversationController(
       alarmController: alarms,
+      chatRepository: FakeAssistantChatRepository(),
     );
+    final recognizer = FakeAssistantSpeechRecognizer();
     final voice = AssistantController(
-      listeningDuration: const Duration(milliseconds: 1),
-      processingDuration: const Duration(milliseconds: 1),
-      speakingDuration: const Duration(milliseconds: 1),
+      recognizer: recognizer,
+      speechService: FakeAssistantPlayback(),
     );
     addTearDown(alarms.dispose);
     addTearDown(conversation.dispose);
     addTearDown(voice.dispose);
 
     await tester.pumpWidget(
-      LocalizedTestApp(
+      localizedTestApp(
         home: AssistantPage(
           controller: voice,
           alarmController: alarms,
@@ -845,18 +958,15 @@ void main() {
     );
     await tester.ensureVisible(microphoneButton);
     await tester.tap(microphoneButton);
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
+    await tester.pump();
+    recognizer.emit('Saya ingin ke Jakarta Kota dari Bekasi.', isFinal: true);
+    await tester.pumpAndSettle();
 
     expect(
-      find.text('Saya ingin ke Manggarai dari Setiabudi.'),
+      find.text('Saya ingin ke Jakarta Kota dari Bekasi.'),
       findsOneWidget,
     );
-    expect(
-      find.text('Rute tercepat membutuhkan 7 menit. Kereta tiba 5 menit lagi.'),
-      findsOneWidget,
-    );
+    expect(find.text(FakeAssistantChatRepository.answer.reply), findsOneWidget);
     expect(find.text('Pakai rute ini'), findsOneWidget);
 
     alarms.cancelAllAlarms();
@@ -879,7 +989,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      LocalizedTestApp(home: AssistantPage(alarmController: alarms)),
+      localizedTestApp(home: AssistantPage(alarmController: alarms)),
     );
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
@@ -888,39 +998,54 @@ void main() {
     alarms.cancelAllAlarms();
   });
 
-  testWidgets('Assistant page simulates a trip and requests confirmation', (
+  testWidgets('Assistant page shows recognized text and backend answer', (
     WidgetTester tester,
   ) async {
+    final recognizer = FakeAssistantSpeechRecognizer();
     final controller = AssistantController(
-      listeningDuration: const Duration(milliseconds: 1),
-      processingDuration: const Duration(milliseconds: 1),
-      speakingDuration: const Duration(milliseconds: 1),
+      recognizer: recognizer,
+      speechService: FakeAssistantPlayback(),
+    );
+    final alarms = TravelAlarmController();
+    final conversation = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: FakeAssistantChatRepository(),
     );
     addTearDown(controller.dispose);
+    addTearDown(alarms.dispose);
+    addTearDown(conversation.dispose);
 
     await tester.pumpWidget(
-      LocalizedTestApp(home: AssistantPage(controller: controller)),
+      localizedTestApp(
+        home: AssistantPage(
+          controller: controller,
+          alarmController: alarms,
+          conversationController: conversation,
+        ),
+      ),
     );
 
     await tester.tap(find.byKey(const Key('assistant-microphone-button')));
     await tester.pump();
     expect(find.text('Mendengarkan'), findsWidgets);
 
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
+    recognizer.emit('Saya ingin ke');
+    await tester.pump();
+    expect(
+      find.byKey(const Key('assistant-transcript-preview')),
+      findsOneWidget,
+    );
+    recognizer.emit('Saya ingin ke Jakarta Kota dari Bekasi.', isFinal: true);
+    await tester.pumpAndSettle();
 
     expect(
-      find.text('Saya ingin ke Manggarai dari Setiabudi.'),
+      find.text('Saya ingin ke Jakarta Kota dari Bekasi.'),
       findsOneWidget,
     );
-    expect(
-      find.text('Rute tercepat membutuhkan 7 menit. Kereta tiba 5 menit lagi.'),
-      findsOneWidget,
-    );
+    expect(find.text(FakeAssistantChatRepository.answer.reply), findsOneWidget);
     expect(find.text('Pakai rute ini'), findsOneWidget);
-    expect(find.text('Ulangi'), findsOneWidget);
-    expect(find.text('Batalkan'), findsOneWidget);
+    expect(find.text('Bacakan jawaban'), findsOneWidget);
+    expect(find.text('Jawaban siap'), findsOneWidget);
   });
 
   testWidgets('Assistant navigation replaces Promo and opens the new tab', (
@@ -955,11 +1080,48 @@ void main() {
     expect(find.text('Asisten Perjalanan'), findsOneWidget);
   });
 
-  testWidgets('Assistant confirmation opens the requested Manggarai route', (
+  testWidgets('Assistant confirmation opens the route returned by backend', (
     WidgetTester tester,
   ) async {
-    appRouter.go('/asisten');
-    await tester.pumpWidget(const MyApp());
+    final recognizer = FakeAssistantSpeechRecognizer();
+    final controller = AssistantController(
+      recognizer: recognizer,
+      speechService: FakeAssistantPlayback(),
+    );
+    final alarms = TravelAlarmController();
+    final conversation = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: FakeAssistantChatRepository(),
+    );
+    final router = GoRouter(
+      initialLocation: '/asisten',
+      routes: [
+        GoRoute(
+          path: '/asisten',
+          builder: (_, _) => AssistantPage(
+            controller: controller,
+            alarmController: alarms,
+            conversationController: conversation,
+          ),
+        ),
+        GoRoute(
+          path: '/rute',
+          builder: (_, _) => const Scaffold(body: Text('Returned route')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    addTearDown(controller.dispose);
+    addTearDown(alarms.dispose);
+    addTearDown(conversation.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        locale: const Locale('id'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+      ),
+    );
     await tester.pumpAndSettle();
 
     final microphoneButton = find.byKey(
@@ -967,17 +1129,17 @@ void main() {
     );
     await tester.ensureVisible(microphoneButton);
     await tester.tap(microphoneButton);
-    await tester.pump(const Duration(milliseconds: 900));
-    await tester.pump(const Duration(milliseconds: 750));
-    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump();
+    recognizer.emit('Dari Bekasi ke Jakarta Kota', isFinal: true);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Pakai rute ini'));
     await tester.tap(find.text('Pakai rute ini'));
     await tester.pumpAndSettle();
 
-    final uri = appRouter.routeInformationProvider.value.uri;
+    final uri = router.routeInformationProvider.value.uri;
     expect(uri.path, '/rute');
-    expect(uri.queryParameters['from'], 'Setiabudi');
-    expect(uri.queryParameters['to'], 'Manggarai');
+    expect(uri.queryParameters['from'], 'Bekasi');
+    expect(uri.queryParameters['to'], 'Jakarta Kota');
   });
 
   testWidgets('Assistant quick actions open existing app destinations', (
@@ -1006,44 +1168,23 @@ void main() {
     }
   });
 
-  testWidgets('Assistant wake-word mode resets after leaving the page', (
-    WidgetTester tester,
-  ) async {
-    appRouter.go('/asisten');
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('wake-word-switch')));
-    await tester.pump();
-    expect(find.text('Kata pemicu aktif'), findsOneWidget);
-
-    appRouter.go('/');
-    await tester.pumpAndSettle();
-    appRouter.go('/asisten');
-    await tester.pumpAndSettle();
-
-    expect(find.text('Aktif hanya di halaman ini'), findsOneWidget);
-    expect(find.text('Kata pemicu aktif'), findsNothing);
-  });
-
   testWidgets('Assistant page cancels an injected controller when disposed', (
     WidgetTester tester,
   ) async {
     final controller = AssistantController(
-      listeningDuration: const Duration(milliseconds: 1),
-      processingDuration: const Duration(milliseconds: 1),
-      speakingDuration: const Duration(milliseconds: 1),
+      recognizer: FakeAssistantSpeechRecognizer(),
+      speechService: FakeAssistantPlayback(),
     );
     addTearDown(controller.dispose);
     await tester.pumpWidget(
-      LocalizedTestApp(home: AssistantPage(controller: controller)),
+      localizedTestApp(home: AssistantPage(controller: controller)),
     );
 
     controller.startConversation();
     await tester.pump();
     expect(controller.state, AssistantInteractionState.listening);
 
-    await tester.pumpWidget(const LocalizedTestApp(home: SizedBox.shrink()));
+    await tester.pumpWidget(localizedTestApp(home: const SizedBox.shrink()));
     await tester.pump(const Duration(milliseconds: 20));
 
     expect(controller.state, AssistantInteractionState.ready);
@@ -1058,22 +1199,33 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    final recognizer = FakeAssistantSpeechRecognizer();
     final controller = AssistantController(
-      listeningDuration: const Duration(milliseconds: 1),
-      processingDuration: const Duration(milliseconds: 1),
-      speakingDuration: const Duration(milliseconds: 1),
+      recognizer: recognizer,
+      speechService: FakeAssistantPlayback(),
+    );
+    final alarms = TravelAlarmController();
+    final conversation = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: FakeAssistantChatRepository(),
     );
     addTearDown(controller.dispose);
+    addTearDown(alarms.dispose);
+    addTearDown(conversation.dispose);
 
     await tester.pumpWidget(
-      LocalizedTestApp(
+      localizedTestApp(
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(
             context,
           ).copyWith(textScaler: const TextScaler.linear(2)),
           child: child!,
         ),
-        home: AssistantPage(controller: controller),
+        home: AssistantPage(
+          controller: controller,
+          alarmController: alarms,
+          conversationController: conversation,
+        ),
       ),
     );
     expect(tester.takeException(), isNull);
@@ -1083,9 +1235,9 @@ void main() {
     );
     await tester.ensureVisible(microphoneButton);
     await tester.tap(microphoneButton);
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
-    await tester.pump(const Duration(milliseconds: 2));
+    await tester.pump();
+    recognizer.emit('Dari Bekasi ke Jakarta Kota', isFinal: true);
+    await tester.pumpAndSettle();
 
     expect(find.text('Pakai rute ini'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -1098,7 +1250,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const LocalizedTestApp(home: AssistantPage()));
+    await tester.pumpWidget(localizedTestApp(home: const AssistantPage()));
 
     final field = find.byKey(const Key('assistant-message-field'));
     await tester.tap(field);

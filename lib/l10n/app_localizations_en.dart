@@ -9,6 +9,73 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get scheduleAllServicesNote =>
+      'All Stations lists one schedule per train journey. Choose a station to see all its departures.';
+
+  @override
+  String get scheduleStationCatalogError =>
+      'The station list could not be loaded. Try again to see all options.';
+
+  @override
+  String get mapYouAreHere => 'Your location';
+
+  @override
+  String get mapLocationLoading => 'Finding your location…';
+
+  @override
+  String get mapLocationUnconfirmed =>
+      'Station not confirmed. Move closer or try the location button.';
+
+  @override
+  String get mapLocationUnavailable =>
+      'Current location unavailable. Try the location button again.';
+
+  @override
+  String get assistantAiQuota =>
+      'The AI quota is busy. Please wait a moment and try again.';
+
+  @override
+  String get assistantAiTimeout =>
+      'The AI did not respond in time. Please try sending again.';
+
+  @override
+  String get assistantAiNotConfigured =>
+      'The AI service has not been configured on the server.';
+
+  @override
+  String get assistantVoiceUnavailable =>
+      'Speech recognition is unavailable. Check microphone permission and speech services in settings, or type a message.';
+
+  @override
+  String get assistantVoicePermissionDenied =>
+      'Microphone permission was denied. Enable it in app settings or type a message.';
+
+  @override
+  String get assistantVoiceLanguageUnavailable =>
+      'This speech language is unavailable on your device. Check speech language settings or type a message.';
+
+  @override
+  String get assistantVoiceWakeWordUnavailable =>
+      'Not available yet. Tap the microphone to speak.';
+
+  @override
+  String get assistantVoicePlaybackUnavailable =>
+      'The answer cannot be read aloud right now. You can still read it in the chat.';
+
+  @override
+  String get assistantVoiceReadAnswer => 'Read answer aloud';
+
+  @override
+  String get assistantVoiceStopReading => 'Stop reading';
+
+  @override
+  String get assistantVoiceAnswerReady => 'Answer ready';
+
+  @override
+  String get assistantVoiceAnswerReadyDescription =>
+      'Read the answer in chat or choose to hear it aloud.';
+
+  @override
   String get languagePageTitle => 'Language';
 
   @override
@@ -25,10 +92,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageIndonesian => 'Indonesia';
 
   @override
+  String get languageIndonesianDesc => 'Use Indonesian for app labels';
+
+  @override
   String get languageEnglish => 'English';
 
   @override
   String get languageEnglishDesc => 'Use English for app labels';
+
+  @override
+  String get languageSimplifiedChinese => '简体中文';
+
+  @override
+  String get languageSimplifiedChineseDesc =>
+      'Use Simplified Chinese for app labels';
+
+  @override
+  String get languageArabic => 'العربية';
+
+  @override
+  String get languageArabicDesc => 'Use Arabic for app labels';
 
   @override
   String get preview => 'Preview';
@@ -44,10 +127,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageAppliedNote =>
-      'This language selection will be saved and applied to all app pages on your next visit.';
+      'Changes are applied immediately and saved for future visits.';
 
   @override
-  String get languageAppliedSnackbar => 'English applied.';
+  String get languageAppliedSnackbar => 'Language applied.';
+
+  @override
+  String get languageSaveFailedSnackbar =>
+      'Language changed for this session, but your preference could not be saved.';
 
   @override
   String get profileAccount => 'Account';
@@ -63,7 +150,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'No login needed for maps, ETA, schedules, and tickets.';
 
   @override
-  String get profileOptionalLogin => 'Optional login';
+  String get profileOptionalLogin => 'Sign in or Create Account';
 
   @override
   String get profileLocalTicketHistory => 'Local ticket history';
@@ -78,10 +165,209 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLargeText => 'Large text and read routes';
 
   @override
+  String get profileBlindGuide => 'Blind Guide';
+
+  @override
+  String get profileBlindGuideDescription =>
+      'Open the camera with automatic voice guidance';
+
+  @override
+  String get cameraGuideActiveAnnouncement =>
+      'Camera guide active. Point the camera forward.';
+
+  @override
+  String get cameraGuideTitle => 'Camera Guide';
+
+  @override
+  String get cameraGuideBack => 'Back';
+
+  @override
+  String cameraGuideStatus(String status) {
+    return 'Camera status: $status';
+  }
+
+  @override
+  String get cameraGuideStateLoading => 'Loading';
+
+  @override
+  String get cameraGuideStateActive => 'Active';
+
+  @override
+  String get cameraGuideStatePermissionDenied => 'Permission required';
+
+  @override
+  String get cameraGuideStateOffline => 'Offline';
+
+  @override
+  String get cameraGuideStateError => 'Error';
+
+  @override
+  String get cameraGuideStateStopped => 'Stopped';
+
+  @override
+  String get cameraGuidePermissionRequired =>
+      'Camera permission is required. Enable it in Settings if it was permanently denied.';
+
+  @override
+  String get cameraGuideSafetyWarning =>
+      'Detection can be wrong. Use a cane, companion, or ask staff for help.';
+
+  @override
+  String get cameraGuideRetry => 'Try Again';
+
+  @override
+  String get cameraGuideStart => 'Start Guide';
+
+  @override
+  String get cameraGuideStop => 'Stop Guide';
+
+  @override
+  String get cameraGuideLoadingMessage => 'Preparing camera…';
+
+  @override
+  String get cameraGuideActiveMessage =>
+      'Point the camera forward. Guide is active.';
+
+  @override
+  String get cameraGuideUnavailableMessage => 'The camera cannot be used.';
+
+  @override
+  String get cameraGuideOfflineMessage =>
+      'Local detection is limited; the AI connection is unavailable.';
+
+  @override
+  String get cameraGuideStoppedMessage => 'Camera guide stopped.';
+
+  @override
+  String get cameraGuideNoClearObject => 'No clear object detected ahead yet.';
+
+  @override
+  String cameraGuideObjectCount(int count) {
+    return '$count objects detected ahead.';
+  }
+
+  @override
+  String cameraGuideLabelsDetected(String labels) {
+    return '$labels detected ahead.';
+  }
+
+  @override
   String get profileHelpCenter => 'Help Center';
 
   @override
   String get profileContactOfficer => 'Contact officer and report errors';
+
+  @override
+  String get authSignInTitle => 'Sign in';
+
+  @override
+  String get authSignInSubtitle =>
+      'Accounts are optional. Sign in to sync your profile and ticket history.';
+
+  @override
+  String get authRegisterTitle => 'Create an account';
+
+  @override
+  String get authRegisterSubtitle =>
+      'Register without changing guest access to schedules, routes, and ticket purchase.';
+
+  @override
+  String get authName => 'Full name';
+
+  @override
+  String get authEmail => 'Email';
+
+  @override
+  String get authPhoneOptional => 'Phone number (optional)';
+
+  @override
+  String get authPassword => 'Password';
+
+  @override
+  String get authPasswordConfirmation => 'Confirm password';
+
+  @override
+  String get authEmailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get authNameRequired => 'Name must contain at least 2 characters.';
+
+  @override
+  String get authPasswordMin => 'Password must contain at least 8 characters.';
+
+  @override
+  String get authPasswordMismatch => 'Password confirmation does not match.';
+
+  @override
+  String get authShowPassword => 'Show password';
+
+  @override
+  String get authHidePassword => 'Hide password';
+
+  @override
+  String get authSubmitLogin => 'Sign in';
+
+  @override
+  String get authSubmitRegister => 'Register';
+
+  @override
+  String get authCreateAccount => 'No account yet? Register';
+
+  @override
+  String get authBackToLogin => 'Already have an account? Sign in';
+
+  @override
+  String get authGuestStillAvailable =>
+      'Without an account, you can still view schedules, find routes, and purchase tickets as a guest.';
+
+  @override
+  String get authInvalidCredentials => 'The email or password is incorrect.';
+
+  @override
+  String get authEmailUsed => 'This email is already registered.';
+
+  @override
+  String get authNetworkError =>
+      'Cannot connect to the server. Check your connection and try again.';
+
+  @override
+  String get authGenericError =>
+      'The request could not be processed. Try again.';
+
+  @override
+  String get profileSignedIn => 'Account active';
+
+  @override
+  String get profileOfflineSession => 'Account saved • currently offline';
+
+  @override
+  String get profileOfflineHint =>
+      'Some changes will be available when the connection returns.';
+
+  @override
+  String get profileEdit => 'Edit profile';
+
+  @override
+  String get profileLogout => 'Sign out';
+
+  @override
+  String get profileLogoutConfirm =>
+      'Sign out on this device? Guest features will remain available.';
+
+  @override
+  String get profileCancel => 'Cancel';
+
+  @override
+  String get profileAccountTicketHistory => 'Account ticket history';
+
+  @override
+  String get profileSyncedAccount => 'Synced with this account';
+
+  @override
+  String get editProfileTitle => 'Edit profile';
+
+  @override
+  String get saveChanges => 'Save changes';
 
   @override
   String get navHome => 'Home';
@@ -393,6 +679,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stationNotFound => 'Station not found';
+
+  @override
+  String get stationVoiceGuide => 'Voice guide';
+
+  @override
+  String get stationVoiceGuideStop => 'Stop voice guide';
+
+  @override
+  String get stationVoiceGuideError => 'Voice guide is unavailable. Try again.';
 
   @override
   String get withoutLogin => 'No login';
@@ -740,6 +1035,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSharedData => 'Shared data';
 
   @override
+  String chatReceivedData(String data) {
+    return 'Data received:\n$data';
+  }
+
+  @override
   String get issueLateEtaTitle => 'Late ETA';
 
   @override
@@ -890,6 +1190,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicTicketShared => 'Guest mode, ticket ID, and last route';
 
   @override
+  String get topicTicketSampleData =>
+      'Ticket code: TKT-20260827-001\nRoute: Manggarai – Tanah Abang\nTravel date: August 27, 2026\nStatus: Active';
+
+  @override
   String get topicTicketAction => 'Start ticket chat';
 
   @override
@@ -919,6 +1223,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Last route, origin-destination, and travel time';
 
   @override
+  String get topicScheduleSampleData =>
+      'Origin station: Manggarai\nDestination: Jakarta Kota\nTrain number: KA 1184\nDeparture: 10:25 WIB\nPlatform: 3';
+
+  @override
   String get topicScheduleAction => 'Start schedule chat';
 
   @override
@@ -945,7 +1253,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicPaymentShared =>
-      'Last transaction status, ticket code, and time';
+      'Last transaction status, ticket code, and payment time';
+
+  @override
+  String get topicPaymentSampleData =>
+      'Transaction ID: TRX-20260827-001\nMethod: QRIS\nAmount: Rp7,800\nTime: August 27, 2026, 10:20 WIB\nStatus: Successful';
 
   @override
   String get topicPaymentAction => 'Start payment chat';
@@ -1581,6 +1893,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantRetry => 'Retry';
 
   @override
+  String get assistantUnknownDestination =>
+      'I couldn\'t understand your destination.';
+
+  @override
+  String assistantDemoTranscript(String destination, String origin) {
+    return 'I want to go to $destination from $origin.';
+  }
+
+  @override
+  String get assistantDemoResponse =>
+      'The fastest route takes 7 minutes. The train arrives in 5 minutes.';
+
+  @override
+  String get assistantUnavailable =>
+      'The assistant is unavailable. Try again or check official station information.';
+
+  @override
+  String get assistantUnknownCommand =>
+      'I couldn\'t understand that command. Try: “When is my next alarm?” or “Enable all my ticket alarms.”';
+
+  @override
+  String get assistantNoActiveTicket => 'No active ticket';
+
+  @override
+  String get assistantNoActiveAlarm => 'No active alarm.';
+
+  @override
+  String get assistantAllAlarmsCancelled => 'All travel alarms were cancelled.';
+
+  @override
+  String get assistantDestinationAlarmAlreadyOff =>
+      'The destination alarm is already off.';
+
+  @override
+  String get assistantDestinationAlarmDisabled =>
+      'The destination alarm was disabled.';
+
+  @override
+  String get assistantAllAlarmsActive => 'All travel alarms are active.';
+
+  @override
+  String travelAlarmTrainArrivesIn(int minutes) {
+    return 'Train arrives in $minutes minutes';
+  }
+
+  @override
+  String get travelAlarmNoActive => 'No active alarm';
+
+  @override
+  String travelAlarmExitAt(String destination, int stations) {
+    return 'Alight at $destination, $stations stations remaining';
+  }
+
+  @override
+  String travelAlarmTransferAt(String station, int stations) {
+    return 'Transfer at $station, $stations stations remaining';
+  }
+
+  @override
+  String get travelAlarmDestinationFallback => 'destination';
+
+  @override
+  String get assistantCameraGuideAction => 'Camera Guide';
+
+  @override
+  String assistantMessageSemantics(String sender, String message) {
+    return '$sender, $message';
+  }
+
+  @override
   String get voiceTapToSpeak => 'Tap to speak';
 
   @override
@@ -1654,6 +2036,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String homePlatform(String platform) {
     return 'Platform $platform';
   }
+
+  @override
+  String get homePlatformUnavailable => 'Platform unavailable';
 
   @override
   String homeDestination(String destination) {
@@ -1796,4 +2181,282 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeFilterLRTPegangsaan => 'Pegangsaan Dua - Velodrome Line';
+
+  @override
+  String get actionRetry => 'Try Again';
+
+  @override
+  String get homeAreaCentral => 'Central Jakarta';
+
+  @override
+  String get homeAreaSouth => 'South Jakarta';
+
+  @override
+  String get homeAreaWest => 'West Jakarta';
+
+  @override
+  String get homeAreaEast => 'East Jakarta';
+
+  @override
+  String get homeAreaNorth => 'North Jakarta';
+
+  @override
+  String get homeAreaGreaterJakarta => 'Greater Jakarta (surrounding cities)';
+
+  @override
+  String mapNearStation(String station) {
+    return 'You are here · Near $station Station';
+  }
+
+  @override
+  String get mapNearestMarkerNote =>
+      'The blue marker shows the nearest station point, not your exact GPS position on the schematic map.';
+
+  @override
+  String get mapLocateMe => 'Find my location';
+
+  @override
+  String get routePreviewTitle => 'Journey Preview';
+
+  @override
+  String get routePreviewUnavailable => 'The line preview is unavailable.';
+
+  @override
+  String get routePreviewLineTitle => 'Journey Line Preview';
+
+  @override
+  String routeCurrentLocation(String station) {
+    return 'You Are Here: $station';
+  }
+
+  @override
+  String get routeDimmedLinesNote =>
+      'Other lines are dimmed to make the journey route easier to see.';
+
+  @override
+  String get routeBackToResults => 'Back to journey results';
+
+  @override
+  String get routeShowLineMap => 'View Line on Map';
+
+  @override
+  String get routeColdStartHint =>
+      'If the free server has just started, wait for the cold start and try again.';
+
+  @override
+  String routeSummarySemantics(int minutes, int stops, String fare) {
+    return '$minutes minutes, $stops stations, fare $fare';
+  }
+
+  @override
+  String routeTransferCount(int count) {
+    return '$count transfers';
+  }
+
+  @override
+  String get routeVoiceGuide => 'Journey voice guidance';
+
+  @override
+  String routeFromStation(String station) {
+    return 'From $station';
+  }
+
+  @override
+  String routeToStation(String station) {
+    return 'To $station';
+  }
+
+  @override
+  String get routeLiveEta => 'Live ETA';
+
+  @override
+  String get routeFocusJourney => 'Focus Journey';
+
+  @override
+  String get routeAllLines => 'All Lines';
+
+  @override
+  String get stationLoadError =>
+      'The server is starting or the connection was interrupted. Station data could not be loaded.';
+
+  @override
+  String get ticketSelectedTrip => 'Selected journey';
+
+  @override
+  String get ticketPaymentConfirmation =>
+      'The ticket becomes active only after Xendit confirms payment with the server.';
+
+  @override
+  String get ticketOpenPayment => 'Open payment';
+
+  @override
+  String get ticketCheckStatus => 'Check status';
+
+  @override
+  String ticketOwnerEmail(String email) {
+    return 'Email: $email';
+  }
+
+  @override
+  String get ticketGateInstruction => 'Show this code at the gate';
+
+  @override
+  String ticketDepartureAt(String time) {
+    return 'Departs $time';
+  }
+
+  @override
+  String get ticketDeviceHeader => 'Showing tickets from this device';
+
+  @override
+  String ticketDeviceSemantics(String count) {
+    return 'Showing tickets from this device, $count';
+  }
+
+  @override
+  String get ticketEmailHeader => 'Showing tickets for';
+
+  @override
+  String ticketEmailSemantics(String email) {
+    return 'Showing tickets for $email';
+  }
+
+  @override
+  String get ticketPartialHistoryError =>
+      'Some ticket history could not be loaded';
+
+  @override
+  String get ticketEmptyCategory => 'No tickets in this category.';
+
+  @override
+  String get ticketShowHistory => 'Show history';
+
+  @override
+  String get ticketReload => 'Reload tickets';
+
+  @override
+  String get ticketBackToList => 'Back to ticket list';
+
+  @override
+  String scheduleStatusUpcoming(int minutes) {
+    return 'Departs in $minutes minutes';
+  }
+
+  @override
+  String get scheduleStatusSoon => 'Departing soon';
+
+  @override
+  String get scheduleStatusNow => 'Departing now';
+
+  @override
+  String get scheduleStatusPassed => 'Schedule passed';
+
+  @override
+  String get scheduleStatusUnavailable => 'Schedule status unavailable';
+
+  @override
+  String get scheduleStatusDisclaimer =>
+      'Status is based on the schedule, not the live train position';
+
+  @override
+  String get scheduleServerActive => 'Server is starting';
+
+  @override
+  String get scheduleBackendError =>
+      'The backend connection is still starting or was interrupted. Try again without treating the schedule as empty.';
+
+  @override
+  String get scheduleDatasetNote =>
+      'Commuter Line schedule for February 2026 · automatic status based on the schedule (not real-time KAI)';
+
+  @override
+  String get actionRepeat => 'Repeat';
+
+  @override
+  String get actionPause => 'Pause';
+
+  @override
+  String get actionStop => 'Stop';
+
+  @override
+  String get facilityAccessibleLift => 'Accessible Lift';
+
+  @override
+  String get facilityEscalator => 'Escalator';
+
+  @override
+  String get facilityPrayerRoom => 'Prayer Room';
+
+  @override
+  String get facilityAccessibleToilet => 'Accessible Toilet';
+
+  @override
+  String get facilityCharger => 'Charger';
+
+  @override
+  String get facilityMinimarket => 'Minimarket';
+
+  @override
+  String get facilityNursingRoom => 'Nursing Room';
+
+  @override
+  String get facilityAtmCenter => 'ATM Center';
+
+  @override
+  String get mapLocationServiceDisabled =>
+      'Turn on the device location service, then try again.';
+
+  @override
+  String get mapLocationPermissionDenied =>
+      'Location permission is required to find the nearest station.';
+
+  @override
+  String get stationVoiceEmpty => 'No stations match your search.';
+
+  @override
+  String stationVoiceFound(int count) {
+    return 'Found $count stations. Top results:';
+  }
+
+  @override
+  String routeNarrationSummary(
+    String from,
+    String to,
+    int minutes,
+    String currency,
+    String fare,
+  ) {
+    return 'Route from $from to $to. Estimated travel time is $minutes minutes. Fare is $currency $fare.';
+  }
+
+  @override
+  String get ticketStatusPending => 'Not paid';
+
+  @override
+  String get ticketStatusPaid => 'Paid';
+
+  @override
+  String get ticketStatusUsed => 'Used';
+
+  @override
+  String get ticketStatusExpired => 'Expired';
+
+  @override
+  String get ticketStatusCancelled => 'Cancelled';
+
+  @override
+  String get ticketStatusUnknown => 'Unknown';
+
+  @override
+  String get travelAlarmInactive => 'Travel alarm is not active';
+
+  @override
+  String get routeLoadError =>
+      'Unable to load the route. Check your connection and try again.';
+
+  @override
+  String get routeNoTransit => 'No transfers';
+
+  @override
+  String get ticketEmailInputLabel => 'Email for tickets and history';
 }

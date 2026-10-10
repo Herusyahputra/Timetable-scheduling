@@ -1,9 +1,83 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
+import 'helpers/fake_assistant_chat.dart';
 import 'package:timetable/features/assistant/domain/entities/assistant_conversation_item.dart';
+import 'package:timetable/features/assistant/domain/repositories/assistant_chat_repository.dart';
 import 'package:timetable/features/assistant/presentation/controllers/assistant_conversation_controller.dart';
 import 'package:timetable/features/travel_alarm/presentation/controllers/travel_alarm_controller.dart';
 
+class _CapturingChatRepository implements AssistantChatRepository {
+  String? message;
+  List<AssistantChatTurn> history = const [];
+  String? lang;
+
+  @override
+  Future<AssistantChatAnswer> ask(
+    String value, {
+    List<AssistantChatTurn> history = const [],
+    String? lang,
+  }) async {
+    message = value;
+    this.history = history;
+    this.lang = lang;
+    return const AssistantChatAnswer(reply: 'Siap, mau ke stasiun mana?');
+  }
+}
+
 void main() {
+  test(
+    'ordinary train question is sent to backend, not intercepted as ticket command',
+    () async {
+      final alarms = TravelAlarmController();
+      final repository = FakeAssistantChatRepository();
+      final chat = AssistantConversationController(
+        alarmController: alarms,
+        chatRepository: repository,
+      );
+      addTearDown(chat.dispose);
+      addTearDown(alarms.dispose);
+      await chat.submitText('Aku mau naik kereta dari Bekasi ke Jakarta Kota');
+      expect(repository.messages, hasLength(1));
+      expect(chat.items.last.kind, AssistantConversationItemKind.message);
+    },
+  );
+
+  test(
+    'overlapping submissions are ignored before appending and dispose drops pending result',
+    () async {
+      final alarms = TravelAlarmController();
+      final repository = FakeAssistantChatRepository()
+        ..pending = Completer<AssistantChatAnswer>();
+      final chat = AssistantConversationController(
+        alarmController: alarms,
+        chatRepository: repository,
+      );
+      addTearDown(alarms.dispose);
+      final first = chat.submitText('Dari Bekasi ke Jakarta Kota');
+      await chat.submitText('duplicate');
+      expect(repository.messages, hasLength(1));
+      expect(chat.items, hasLength(1));
+      chat.dispose();
+      repository.pending!.complete(FakeAssistantChatRepository.answer);
+      expect(await first, isNull);
+      expect(chat.items, hasLength(1));
+    },
+  );
+
+  test('provider quota error has an informative reply', () async {
+    final alarms = TravelAlarmController();
+    final repository = FakeAssistantChatRepository()
+      ..error = const AssistantChatException('AI_QUOTA');
+    final chat = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: repository,
+    );
+    addTearDown(chat.dispose);
+    addTearDown(alarms.dispose);
+    expect(await chat.submitText('Halo'), isNull);
+    expect(chat.lastErrorCode, 'AI_QUOTA');
+    expect(chat.items.last.text, contains('Kuota AI'));
+  });
   test('typed command activates every alarm and appends ordered messages', () {
     final alarms = TravelAlarmController()
       ..completePurchase(from: 'Setiabudi', to: 'Manggarai');
@@ -140,5 +214,45 @@ void main() {
     expect(activation.alarmSnapshot?.departureAlarmEnabled, isTrue);
     expect(activation.alarmSnapshot?.destinationAlarmEnabled, isTrue);
     expect(alarms.state.hasAnyAlarm, isFalse);
+  });
+
+  test('typed chat sends recent turns as temporary context', () async {
+    final alarms = TravelAlarmController();
+    final repository = _CapturingChatRepository();
+    final chat = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: repository,
+    );
+    addTearDown(chat.dispose);
+    addTearDown(alarms.dispose);
+
+    await chat.submitText('Aku mau naik dari Pondok Ranji');
+    await chat.submitText('Tujuannya ke Jakarta Kota');
+
+    expect(repository.message, 'Tujuannya ke Jakarta Kota');
+    expect(repository.history.map((turn) => (turn.role, turn.text)), [
+      (AssistantChatRole.user, 'Aku mau naik dari Pondok Ranji'),
+      (AssistantChatRole.assistant, 'Siap, mau ke stasiun mana?'),
+    ]);
+  });
+
+  test('typed chat bounds temporary context to six prior turns', () async {
+    final alarms = TravelAlarmController();
+    final repository = _CapturingChatRepository();
+    final chat = AssistantConversationController(
+      alarmController: alarms,
+      chatRepository: repository,
+    );
+    addTearDown(chat.dispose);
+    addTearDown(alarms.dispose);
+
+    for (var index = 0; index < 4; index++) {
+      await chat.submitText('Pesan $index');
+    }
+    await chat.submitText('Pesan terakhir');
+
+    expect(repository.history, hasLength(6));
+    expect(repository.history.first.text, 'Pesan 1');
+    expect(repository.history.last.text, 'Siap, mau ke stasiun mana?');
   });
 }

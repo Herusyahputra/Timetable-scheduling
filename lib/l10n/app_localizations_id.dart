@@ -9,6 +9,73 @@ class AppLocalizationsId extends AppLocalizations {
   AppLocalizationsId([String locale = 'id']) : super(locale);
 
   @override
+  String get scheduleAllServicesNote =>
+      'Semua Stasiun menampilkan satu jadwal per perjalanan KA. Pilih stasiun untuk seluruh keberangkatan di stasiun tersebut.';
+
+  @override
+  String get scheduleStationCatalogError =>
+      'Daftar stasiun belum berhasil dimuat. Coba lagi untuk melihat semua pilihan.';
+
+  @override
+  String get mapYouAreHere => 'Lokasi kamu';
+
+  @override
+  String get mapLocationLoading => 'Mencari lokasi kamu…';
+
+  @override
+  String get mapLocationUnconfirmed =>
+      'Stasiun belum dapat dipastikan. Dekati stasiun atau coba tombol lokasi.';
+
+  @override
+  String get mapLocationUnavailable =>
+      'Lokasi terkini belum tersedia. Coba tombol lokasi lagi.';
+
+  @override
+  String get assistantAiQuota =>
+      'Kuota AI sedang penuh. Tunggu sebentar lalu coba lagi ya.';
+
+  @override
+  String get assistantAiTimeout =>
+      'AI belum merespons tepat waktu. Coba kirim lagi ya.';
+
+  @override
+  String get assistantAiNotConfigured =>
+      'Layanan AI belum dikonfigurasi di server.';
+
+  @override
+  String get assistantVoiceUnavailable =>
+      'Pengenalan suara belum tersedia. Periksa izin mikrofon dan layanan suara di pengaturan, atau ketik pesan.';
+
+  @override
+  String get assistantVoicePermissionDenied =>
+      'Izin mikrofon ditolak. Aktifkan izin di pengaturan aplikasi atau ketik pesan.';
+
+  @override
+  String get assistantVoiceLanguageUnavailable =>
+      'Bahasa pengenalan suara belum tersedia di perangkat. Periksa pengaturan bahasa suara atau ketik pesan.';
+
+  @override
+  String get assistantVoiceWakeWordUnavailable =>
+      'Belum tersedia. Ketuk mikrofon untuk berbicara.';
+
+  @override
+  String get assistantVoicePlaybackUnavailable =>
+      'Jawaban belum bisa dibacakan. Kamu tetap bisa melihat teksnya di chat.';
+
+  @override
+  String get assistantVoiceReadAnswer => 'Bacakan jawaban';
+
+  @override
+  String get assistantVoiceStopReading => 'Hentikan suara';
+
+  @override
+  String get assistantVoiceAnswerReady => 'Jawaban siap';
+
+  @override
+  String get assistantVoiceAnswerReadyDescription =>
+      'Lihat jawaban di chat atau pilih untuk membacakannya.';
+
+  @override
   String get languagePageTitle => 'Bahasa';
 
   @override
@@ -25,11 +92,28 @@ class AppLocalizationsId extends AppLocalizations {
   String get languageIndonesian => 'Indonesia';
 
   @override
+  String get languageIndonesianDesc =>
+      'Gunakan Bahasa Indonesia untuk label aplikasi';
+
+  @override
   String get languageEnglish => 'English';
 
   @override
   String get languageEnglishDesc =>
       'Gunakan Bahasa Inggris untuk label aplikasi';
+
+  @override
+  String get languageSimplifiedChinese => '简体中文';
+
+  @override
+  String get languageSimplifiedChineseDesc =>
+      'Gunakan Bahasa Mandarin Sederhana untuk label aplikasi';
+
+  @override
+  String get languageArabic => 'العربية';
+
+  @override
+  String get languageArabicDesc => 'Gunakan Bahasa Arab untuk label aplikasi';
 
   @override
   String get preview => 'Pratinjau';
@@ -45,10 +129,14 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get languageAppliedNote =>
-      'Perubahan diterapkan langsung setelah dipilih.';
+      'Perubahan langsung diterapkan dan disimpan untuk kunjungan berikutnya.';
 
   @override
-  String get languageAppliedSnackbar => 'Bahasa Indonesia diterapkan.';
+  String get languageAppliedSnackbar => 'Bahasa diterapkan.';
+
+  @override
+  String get languageSaveFailedSnackbar =>
+      'Bahasa diubah untuk sesi ini, tetapi preferensi Anda tidak dapat disimpan.';
 
   @override
   String get profileAccount => 'Akun';
@@ -64,7 +152,7 @@ class AppLocalizationsId extends AppLocalizations {
       'Tidak perlu login untuk peta, ETA. jadwal, dan beli tiket.';
 
   @override
-  String get profileOptionalLogin => 'Masuk opsional';
+  String get profileOptionalLogin => 'Masuk atau Buat Akun';
 
   @override
   String get profileLocalTicketHistory => 'Riwayat tiket lokal';
@@ -79,10 +167,208 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileLargeText => 'Teks besar dan bacakan rute';
 
   @override
+  String get profileBlindGuide => 'Pemandu Tunanetra';
+
+  @override
+  String get profileBlindGuideDescription =>
+      'Buka kamera dengan panduan suara otomatis';
+
+  @override
+  String get cameraGuideActiveAnnouncement =>
+      'Pemandu kamera aktif. Arahkan kamera ke depan.';
+
+  @override
+  String get cameraGuideTitle => 'Pemandu Kamera';
+
+  @override
+  String get cameraGuideBack => 'Kembali';
+
+  @override
+  String cameraGuideStatus(String status) {
+    return 'Status kamera: $status';
+  }
+
+  @override
+  String get cameraGuideStateLoading => 'Memuat';
+
+  @override
+  String get cameraGuideStateActive => 'Aktif';
+
+  @override
+  String get cameraGuideStatePermissionDenied => 'Izin diperlukan';
+
+  @override
+  String get cameraGuideStateOffline => 'Offline';
+
+  @override
+  String get cameraGuideStateError => 'Kesalahan';
+
+  @override
+  String get cameraGuideStateStopped => 'Dihentikan';
+
+  @override
+  String get cameraGuidePermissionRequired =>
+      'Izin kamera diperlukan. Aktifkan dari Pengaturan jika sebelumnya ditolak permanen.';
+
+  @override
+  String get cameraGuideSafetyWarning =>
+      'Deteksi dapat keliru. Gunakan tongkat, pendamping, atau bantuan petugas.';
+
+  @override
+  String get cameraGuideRetry => 'Coba Lagi';
+
+  @override
+  String get cameraGuideStart => 'Mulai Pemandu';
+
+  @override
+  String get cameraGuideStop => 'Hentikan Pemandu';
+
+  @override
+  String get cameraGuideLoadingMessage => 'Menyiapkan kamera…';
+
+  @override
+  String get cameraGuideActiveMessage =>
+      'Arahkan kamera ke depan. Pemandu aktif.';
+
+  @override
+  String get cameraGuideUnavailableMessage => 'Kamera tidak dapat digunakan.';
+
+  @override
+  String get cameraGuideOfflineMessage =>
+      'Deteksi lokal terbatas; koneksi AI tidak tersedia.';
+
+  @override
+  String get cameraGuideStoppedMessage => 'Pemandu kamera dihentikan.';
+
+  @override
+  String get cameraGuideNoClearObject => 'Belum ada objek jelas di depan.';
+
+  @override
+  String cameraGuideObjectCount(int count) {
+    return '$count objek terdeteksi di depan.';
+  }
+
+  @override
+  String cameraGuideLabelsDetected(String labels) {
+    return '$labels terdeteksi di depan.';
+  }
+
+  @override
   String get profileHelpCenter => 'Pusat Bantuan';
 
   @override
   String get profileContactOfficer => 'Kontak petugas dan laporan info salah';
+
+  @override
+  String get authSignInTitle => 'Masuk ke akun';
+
+  @override
+  String get authSignInSubtitle =>
+      'Akun bersifat opsional. Gunakan untuk menyinkronkan profil dan riwayat tiket.';
+
+  @override
+  String get authRegisterTitle => 'Buat akun';
+
+  @override
+  String get authRegisterSubtitle =>
+      'Daftar tanpa mengubah akses guest untuk jadwal, rute, dan pembelian tiket.';
+
+  @override
+  String get authName => 'Nama lengkap';
+
+  @override
+  String get authEmail => 'Email';
+
+  @override
+  String get authPhoneOptional => 'Nomor telepon (opsional)';
+
+  @override
+  String get authPassword => 'Kata sandi';
+
+  @override
+  String get authPasswordConfirmation => 'Ulangi kata sandi';
+
+  @override
+  String get authEmailInvalid => 'Masukkan alamat email yang valid.';
+
+  @override
+  String get authNameRequired => 'Nama minimal 2 karakter.';
+
+  @override
+  String get authPasswordMin => 'Kata sandi minimal 8 karakter.';
+
+  @override
+  String get authPasswordMismatch => 'Konfirmasi kata sandi belum sama.';
+
+  @override
+  String get authShowPassword => 'Tampilkan kata sandi';
+
+  @override
+  String get authHidePassword => 'Sembunyikan kata sandi';
+
+  @override
+  String get authSubmitLogin => 'Masuk';
+
+  @override
+  String get authSubmitRegister => 'Daftar';
+
+  @override
+  String get authCreateAccount => 'Belum punya akun? Daftar';
+
+  @override
+  String get authBackToLogin => 'Sudah punya akun? Masuk';
+
+  @override
+  String get authGuestStillAvailable =>
+      'Tanpa akun, kamu tetap bisa melihat jadwal, mencari rute, dan membeli tiket sebagai guest.';
+
+  @override
+  String get authInvalidCredentials => 'Email atau kata sandi tidak sesuai.';
+
+  @override
+  String get authEmailUsed => 'Email ini sudah terdaftar.';
+
+  @override
+  String get authNetworkError =>
+      'Tidak dapat terhubung ke server. Periksa koneksi dan coba lagi.';
+
+  @override
+  String get authGenericError => 'Permintaan belum dapat diproses. Coba lagi.';
+
+  @override
+  String get profileSignedIn => 'Akun aktif';
+
+  @override
+  String get profileOfflineSession => 'Akun tersimpan • sedang offline';
+
+  @override
+  String get profileOfflineHint =>
+      'Beberapa perubahan akan tersedia saat koneksi kembali.';
+
+  @override
+  String get profileEdit => 'Edit profil';
+
+  @override
+  String get profileLogout => 'Keluar';
+
+  @override
+  String get profileLogoutConfirm =>
+      'Keluar dari akun di perangkat ini? Fitur guest tetap dapat digunakan.';
+
+  @override
+  String get profileCancel => 'Batal';
+
+  @override
+  String get profileAccountTicketHistory => 'Riwayat tiket akun';
+
+  @override
+  String get profileSyncedAccount => 'Tersinkron dengan akun ini';
+
+  @override
+  String get editProfileTitle => 'Edit profil';
+
+  @override
+  String get saveChanges => 'Simpan perubahan';
 
   @override
   String get navHome => 'Beranda';
@@ -393,6 +679,16 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get stationNotFound => 'Stasiun tidak ditemukan';
+
+  @override
+  String get stationVoiceGuide => 'Panduan suara';
+
+  @override
+  String get stationVoiceGuideStop => 'Hentikan panduan suara';
+
+  @override
+  String get stationVoiceGuideError =>
+      'Panduan suara tidak dapat digunakan. Coba lagi.';
 
   @override
   String get withoutLogin => 'Tanpa login';
@@ -743,6 +1039,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get chatSharedData => 'Data yang dikirim';
 
   @override
+  String chatReceivedData(String data) {
+    return 'Data yang diterima:\n$data';
+  }
+
+  @override
   String get issueLateEtaTitle => 'ETA Terlambat';
 
   @override
@@ -895,6 +1196,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get topicTicketShared => 'Mode tamu, ID tiket, dan rute terakhir';
 
   @override
+  String get topicTicketSampleData =>
+      'Kode tiket: TKT-20260827-001\nRute: Manggarai – Tanah Abang\nTanggal perjalanan: 27 Agustus 2026\nStatus: Aktif';
+
+  @override
   String get topicTicketAction => 'Mulai chat tiket';
 
   @override
@@ -925,6 +1230,10 @@ class AppLocalizationsId extends AppLocalizations {
       'Rute terakhir, stasiun asal-tujuan, dan waktu perjalanan';
 
   @override
+  String get topicScheduleSampleData =>
+      'Stasiun asal: Manggarai\nTujuan: Jakarta Kota\nNomor kereta: KA 1184\nKeberangkatan: 10.25 WIB\nPeron: 3';
+
+  @override
   String get topicScheduleAction => 'Mulai chat jadwal';
 
   @override
@@ -953,6 +1262,10 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get topicPaymentShared =>
       'Status transaksi terakhir, kode tiket, dan waktu pembayaran';
+
+  @override
+  String get topicPaymentSampleData =>
+      'ID transaksi: TRX-20260827-001\nMetode: QRIS\nNominal: Rp7.800\nWaktu: 27 Agustus 2026, 10.20 WIB\nStatus: Berhasil';
 
   @override
   String get topicPaymentAction => 'Mulai chat pembayaran';
@@ -1590,6 +1903,75 @@ class AppLocalizationsId extends AppLocalizations {
   String get assistantRetry => 'Coba lagi';
 
   @override
+  String get assistantUnknownDestination => 'Saya belum memahami tujuanmu.';
+
+  @override
+  String assistantDemoTranscript(String destination, String origin) {
+    return 'Saya ingin ke $destination dari $origin.';
+  }
+
+  @override
+  String get assistantDemoResponse =>
+      'Rute tercepat membutuhkan 7 menit. Kereta tiba 5 menit lagi.';
+
+  @override
+  String get assistantUnavailable =>
+      'Asisten sedang tidak tersedia. Coba lagi atau cek informasi resmi stasiun.';
+
+  @override
+  String get assistantUnknownCommand =>
+      'Saya belum memahami perintah itu. Coba: “Alarm berikutnya kapan?” atau “Aktifkan semua alarm tiket saya”.';
+
+  @override
+  String get assistantNoActiveTicket => 'Belum ada tiket aktif';
+
+  @override
+  String get assistantNoActiveAlarm => 'Tidak ada alarm aktif.';
+
+  @override
+  String get assistantAllAlarmsCancelled =>
+      'Semua alarm perjalanan dibatalkan.';
+
+  @override
+  String get assistantDestinationAlarmAlreadyOff =>
+      'Alarm tujuan sudah nonaktif.';
+
+  @override
+  String get assistantDestinationAlarmDisabled => 'Alarm tujuan dinonaktifkan.';
+
+  @override
+  String get assistantAllAlarmsActive => 'Semua alarm perjalanan aktif.';
+
+  @override
+  String travelAlarmTrainArrivesIn(int minutes) {
+    return 'Kereta datang $minutes menit lagi';
+  }
+
+  @override
+  String get travelAlarmNoActive => 'Tidak ada alarm aktif';
+
+  @override
+  String travelAlarmExitAt(String destination, int stations) {
+    return 'Turun di $destination, $stations stasiun lagi';
+  }
+
+  @override
+  String travelAlarmTransferAt(String station, int stations) {
+    return 'Transit di $station, $stations stasiun lagi';
+  }
+
+  @override
+  String get travelAlarmDestinationFallback => 'tujuan';
+
+  @override
+  String get assistantCameraGuideAction => 'Pemandu Kamera';
+
+  @override
+  String assistantMessageSemantics(String sender, String message) {
+    return '$sender, $message';
+  }
+
+  @override
   String get voiceTapToSpeak => 'Ketuk untuk bicara';
 
   @override
@@ -1665,6 +2047,9 @@ class AppLocalizationsId extends AppLocalizations {
   String homePlatform(String platform) {
     return 'Peron $platform';
   }
+
+  @override
+  String get homePlatformUnavailable => 'Peron belum tersedia';
 
   @override
   String homeDestination(String destination) {
@@ -1807,4 +2192,282 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get homeFilterLRTPegangsaan => 'Lin Pegangsaan Dua - Velodrome';
+
+  @override
+  String get actionRetry => 'Coba Lagi';
+
+  @override
+  String get homeAreaCentral => 'Jakarta Pusat';
+
+  @override
+  String get homeAreaSouth => 'Jakarta Selatan';
+
+  @override
+  String get homeAreaWest => 'Jakarta Barat';
+
+  @override
+  String get homeAreaEast => 'Jakarta Timur';
+
+  @override
+  String get homeAreaNorth => 'Jakarta Utara';
+
+  @override
+  String get homeAreaGreaterJakarta => 'Bodetabek (Penyangga)';
+
+  @override
+  String mapNearStation(String station) {
+    return 'Kamu di sini · Dekat Stasiun $station';
+  }
+
+  @override
+  String get mapNearestMarkerNote =>
+      'Penanda biru menunjukkan titik stasiun terdekat, bukan posisi GPS persis di peta skematik.';
+
+  @override
+  String get mapLocateMe => 'Temukan lokasi saya';
+
+  @override
+  String get routePreviewTitle => 'Pratinjau Perjalanan';
+
+  @override
+  String get routePreviewUnavailable => 'Pratinjau line tidak tersedia.';
+
+  @override
+  String get routePreviewLineTitle => 'Pratinjau Line Perjalanan';
+
+  @override
+  String routeCurrentLocation(String station) {
+    return 'Anda Di Sini: $station';
+  }
+
+  @override
+  String get routeDimmedLinesNote =>
+      'Line lain diredupkan agar rute perjalanan lebih mudah dilihat.';
+
+  @override
+  String get routeBackToResults => 'Kembali ke hasil perjalanan';
+
+  @override
+  String get routeShowLineMap => 'Lihat Line di Peta';
+
+  @override
+  String get routeColdStartHint =>
+      'Jika baru membuka server gratis, tunggu cold start lalu coba lagi.';
+
+  @override
+  String routeSummarySemantics(int minutes, int stops, String fare) {
+    return '$minutes menit, $stops stasiun, tarif $fare';
+  }
+
+  @override
+  String routeTransferCount(int count) {
+    return '$count transit';
+  }
+
+  @override
+  String get routeVoiceGuide => 'Panduan suara perjalanan';
+
+  @override
+  String routeFromStation(String station) {
+    return 'Dari $station';
+  }
+
+  @override
+  String routeToStation(String station) {
+    return 'Ke $station';
+  }
+
+  @override
+  String get routeLiveEta => 'Live ETA';
+
+  @override
+  String get routeFocusJourney => 'Fokus Perjalanan';
+
+  @override
+  String get routeAllLines => 'Semua Line';
+
+  @override
+  String get stationLoadError =>
+      'Server sedang aktif atau koneksi terputus. Data stasiun belum dapat dimuat.';
+
+  @override
+  String get ticketSelectedTrip => 'Perjalanan dipilih';
+
+  @override
+  String get ticketPaymentConfirmation =>
+      'Tiket aktif hanya setelah Xendit mengonfirmasi pembayaran ke server.';
+
+  @override
+  String get ticketOpenPayment => 'Buka pembayaran';
+
+  @override
+  String get ticketCheckStatus => 'Cek status';
+
+  @override
+  String ticketOwnerEmail(String email) {
+    return 'Email: $email';
+  }
+
+  @override
+  String get ticketGateInstruction => 'Tunjukkan kode ini di gerbang';
+
+  @override
+  String ticketDepartureAt(String time) {
+    return 'Berangkat $time';
+  }
+
+  @override
+  String get ticketDeviceHeader => 'Menampilkan tiket dari perangkat ini';
+
+  @override
+  String ticketDeviceSemantics(String count) {
+    return 'Menampilkan tiket dari perangkat ini, $count';
+  }
+
+  @override
+  String get ticketEmailHeader => 'Menampilkan tiket untuk';
+
+  @override
+  String ticketEmailSemantics(String email) {
+    return 'Menampilkan tiket untuk $email';
+  }
+
+  @override
+  String get ticketPartialHistoryError => 'Sebagian riwayat belum dapat dimuat';
+
+  @override
+  String get ticketEmptyCategory => 'Belum ada tiket pada kategori ini.';
+
+  @override
+  String get ticketShowHistory => 'Tampilkan riwayat';
+
+  @override
+  String get ticketReload => 'Muat ulang tiket';
+
+  @override
+  String get ticketBackToList => 'Kembali ke daftar tiket';
+
+  @override
+  String scheduleStatusUpcoming(int minutes) {
+    return 'Berangkat $minutes menit lagi';
+  }
+
+  @override
+  String get scheduleStatusSoon => 'Segera berangkat';
+
+  @override
+  String get scheduleStatusNow => 'Berangkat sekarang';
+
+  @override
+  String get scheduleStatusPassed => 'Jadwal lewat';
+
+  @override
+  String get scheduleStatusUnavailable => 'Status jadwal tidak tersedia';
+
+  @override
+  String get scheduleStatusDisclaimer =>
+      'Status berdasarkan jadwal (bukan posisi kereta live)';
+
+  @override
+  String get scheduleServerActive => 'Server sedang aktif';
+
+  @override
+  String get scheduleBackendError =>
+      'Koneksi ke backend masih disiapkan atau terputus. Coba lagi tanpa menganggap jadwal kosong.';
+
+  @override
+  String get scheduleDatasetNote =>
+      'Jadwal Commuter Line Februari 2026 · status otomatis berdasarkan jadwal (bukan real-time KAI)';
+
+  @override
+  String get actionRepeat => 'Ulangi';
+
+  @override
+  String get actionPause => 'Jeda';
+
+  @override
+  String get actionStop => 'Hentikan';
+
+  @override
+  String get facilityAccessibleLift => 'Lift Aksesibel';
+
+  @override
+  String get facilityEscalator => 'Eskalator';
+
+  @override
+  String get facilityPrayerRoom => 'Musala';
+
+  @override
+  String get facilityAccessibleToilet => 'Toilet Difabel';
+
+  @override
+  String get facilityCharger => 'Pengisi Daya';
+
+  @override
+  String get facilityMinimarket => 'Minimarket';
+
+  @override
+  String get facilityNursingRoom => 'Ruang Menyusui';
+
+  @override
+  String get facilityAtmCenter => 'Pusat ATM';
+
+  @override
+  String get mapLocationServiceDisabled =>
+      'Aktifkan layanan lokasi perangkat, lalu coba lagi.';
+
+  @override
+  String get mapLocationPermissionDenied =>
+      'Izin lokasi dibutuhkan untuk menemukan stasiun terdekat.';
+
+  @override
+  String get stationVoiceEmpty =>
+      'Tidak ada stasiun yang sesuai dengan pencarian.';
+
+  @override
+  String stationVoiceFound(int count) {
+    return 'Ditemukan $count stasiun. Hasil teratas:';
+  }
+
+  @override
+  String routeNarrationSummary(
+    String from,
+    String to,
+    int minutes,
+    String currency,
+    String fare,
+  ) {
+    return 'Rute dari $from menuju $to. Estimasi waktu $minutes menit. Tarif $currency$fare.';
+  }
+
+  @override
+  String get ticketStatusPending => 'Belum dibayar';
+
+  @override
+  String get ticketStatusPaid => 'Dibayar';
+
+  @override
+  String get ticketStatusUsed => 'Sudah digunakan';
+
+  @override
+  String get ticketStatusExpired => 'Kedaluwarsa';
+
+  @override
+  String get ticketStatusCancelled => 'Dibatalkan';
+
+  @override
+  String get ticketStatusUnknown => 'Tidak diketahui';
+
+  @override
+  String get travelAlarmInactive => 'Alarm perjalanan belum diaktifkan';
+
+  @override
+  String get routeLoadError =>
+      'Tidak dapat memuat rute. Periksa koneksi dan coba lagi.';
+
+  @override
+  String get routeNoTransit => 'Tanpa transit';
+
+  @override
+  String get ticketEmailInputLabel => 'Email untuk tiket dan riwayat';
 }

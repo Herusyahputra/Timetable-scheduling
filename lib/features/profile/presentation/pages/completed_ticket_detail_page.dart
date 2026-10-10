@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_notice.dart';
 import '../widgets/profile_detail_scaffold.dart';
 
 /// Detail perjalanan yang telah selesai dan tersimpan di riwayat perangkat.
@@ -11,11 +12,11 @@ class CompletedTicketDetailPage extends StatelessWidget {
 
   void _downloadReceipt(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(l10n.completedTicketReceiptReady)),
-      );
+    AppNotice.show(
+      context,
+      message: l10n.completedTicketReceiptReady,
+      type: AppNoticeType.success,
+    );
   }
 
   @override
@@ -59,8 +60,10 @@ class CompletedTicketDetailPage extends StatelessWidget {
                 label: Text(l10n.completedTicketReport),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accentOrange,
-                  side: const BorderSide(color: Color(0xFFFED7AA)),
-                  backgroundColor: const Color(0xFFFFF7ED),
+                  side: BorderSide(
+                    color: AppColors.pinkAccent.withValues(alpha: 0.45),
+                  ),
+                  backgroundColor: AppColors.accentOrangeLight,
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -191,10 +194,16 @@ class _JourneySummaryCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _TimeInformation(label: l10n.completedTicketDepart, value: '15:18 WIB'),
+                child: _TimeInformation(
+                  label: l10n.completedTicketDepart,
+                  value: '15:18 WIB',
+                ),
               ),
               Expanded(
-                child: _TimeInformation(label: l10n.completedTicketArrive, value: '16:02 WIB'),
+                child: _TimeInformation(
+                  label: l10n.completedTicketArrive,
+                  value: '16:02 WIB',
+                ),
               ),
             ],
           ),
@@ -271,7 +280,10 @@ class _JourneyInformationCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _LabelValue(label: l10n.ticketStationOrigin, value: 'Dukuh Atas'),
+                child: _LabelValue(
+                  label: l10n.ticketStationOrigin,
+                  value: 'Dukuh Atas',
+                ),
               ),
               const SizedBox(width: 18),
               Expanded(

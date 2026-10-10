@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/localization/app_language_tag.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_notice.dart';
 import '../../../../shared/widgets/bottom_nav_bar.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../travel_alarm/presentation/controllers/travel_alarm_controller.dart';
 import '../controllers/assistant_controller.dart';
 import '../controllers/assistant_conversation_controller.dart';
+import '../models/assistant_copy.dart';
+import '../../../travel_alarm/presentation/models/travel_alarm_copy.dart';
+import '../../data/repositories/assistant_chat_repository_impl.dart';
+import '../../domain/repositories/assistant_chat_repository.dart';
 import '../widgets/assistant_composer.dart';
 import '../widgets/assistant_conversation_timeline.dart';
 import '../widgets/assistant_quick_actions.dart';
@@ -37,7 +43,6 @@ class _AssistantPageState extends State<AssistantPage>
   late final AssistantConversationController _conversationController;
   late final bool _ownsConversationController;
   final ScrollController _scrollController = ScrollController();
-  int _lastConsumedExchangeId = 0;
   int _lastConversationItemCount = 0;
 
   @override
@@ -50,8 +55,11 @@ class _AssistantPageState extends State<AssistantPage>
     _ownsConversationController = widget.conversationController == null;
     _conversationController =
         widget.conversationController ??
-        AssistantConversationController(alarmController: _alarmController);
-    _lastConsumedExchangeId = _controller.completedExchangeId;
+        AssistantConversationController(
+          alarmController: _alarmController,
+          chatRepository: AssistantChatRepositoryImpl(),
+        );
+    _controller.onTranscript = _submitMessage;
     _lastConversationItemCount = _conversationController.items.length;
     WidgetsBinding.instance.addObserver(this);
     _controller.addListener(_handleVoiceControllerChange);
@@ -66,9 +74,7 @@ class _AssistantPageState extends State<AssistantPage>
     _conversationController.removeListener(_handleConversationChange);
     _alarmController.removeListener(_handleAlarmChange);
     _controller.cancelConversation();
-    if (_controller.wakeWordEnabled) {
-      _controller.toggleWakeWord(false);
-    }
+    _controller.onTranscript = null;
     if (_ownsController) {
       _controller.dispose();
     }
@@ -82,17 +88,53 @@ class _AssistantPageState extends State<AssistantPage>
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final l10n = AppLocalizations.of(context)!;
+    final copy = AssistantCopy.fromL10n(l10n);
+    _controller.configure(copy);
+    _controller.languageCode = appLanguageTagForLocale(
+      Localizations.localeOf(context),
+    );
+    _conversationController.configure(copy);
+    _alarmController.configure(TravelAlarmCopy.fromL10n(l10n));
+  }
+
   void _handleVoiceControllerChange() {
-    if (_controller.completedExchangeId > _lastConsumedExchangeId &&
-        _controller.userTranscript != null &&
-        _controller.assistantResponse != null) {
-      _lastConsumedExchangeId = _controller.completedExchangeId;
-      _conversationController.addVoiceExchange(
-        transcript: _controller.userTranscript!,
-        response: _controller.assistantResponse!,
-      );
-    }
     if (mounted) setState(() {});
+  }
+
+  Future<String?> _submitMessage(String text) async {
+    final reply = await _conversationController.submitText(
+      text,
+      lang: _controller.languageCode,
+    );
+    if (!mounted) return null;
+    if (reply != null) _controller.setResponse(reply);
+    if (reply == null && _conversationController.lastErrorCode != null) {
+      throw AssistantChatException(_conversationController.lastErrorCode!);
+    }
+    return reply;
+  }
+
+  void _submitTypedMessage(String text) async {
+    _controller.stopSpeaking();
+    try {
+      await _submitMessage(text);
+    } on AssistantChatException {
+      // Provider error is already rendered in the shared chat timeline.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // An Android permission dialog may temporarily make the app inactive.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _controller.cancelConversation();
+    }
   }
 
   void _handleConversationChange() {
@@ -133,29 +175,25 @@ class _AssistantPageState extends State<AssistantPage>
     setState(() {});
   }
 
-  void _confirmRoute() {
+  void _confirmRoute(String from, String to) {
     context.go(
-      Uri(
-        path: '/rute',
-        queryParameters: const {
-          'from': AssistantController.demoOrigin,
-          'to': AssistantController.demoDestination,
-        },
-      ).toString(),
+      Uri(path: '/rute', queryParameters: {'from': from, 'to': to}).toString(),
     );
   }
 
   void _cancelAlarms() {
     if (!_alarmController.state.hasAnyAlarm) return;
     _alarmController.cancelAllAlarms();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.alarmDeactivated)),
-      );
+    AppNotice.show(
+      context,
+      message: AppLocalizations.of(context)!.alarmDeactivated,
+      type: AppNoticeType.success,
+      placement: AppNoticePlacement.top,
+    );
   }
 
   VoidCallback? get _voiceAction {
+    if (_conversationController.isSending) return null;
     return switch (_controller.state) {
       AssistantInteractionState.ready ||
       AssistantInteractionState.confirmation ||
@@ -216,12 +254,25 @@ class _AssistantPageState extends State<AssistantPage>
                   children: [
                     _buildHeader(context),
                     const SizedBox(height: 16),
-                    _buildWakeWordSetting(context),
-                    const SizedBox(height: 12),
                     AssistantVoicePanel(
                       state: _controller.state,
+                      transcript: _controller.userTranscript,
                       onTap: _voiceAction,
                     ),
+                    if (_controller.errorCode != null) ...[
+                      const SizedBox(height: 10),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _voiceErrorText(context),
+                          key: const Key('assistant-voice-error'),
+                          style: const TextStyle(
+                            color: AppColors.statusRed,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
                     if (_conversationController.items.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       AssistantConversationTimeline(
@@ -233,6 +284,51 @@ class _AssistantPageState extends State<AssistantPage>
                         onConfirmRoute: _confirmRoute,
                         onRepeatRoute: _controller.repeatResponse,
                         onCancelRoute: _controller.cancelConversation,
+                      ),
+                    ],
+                    if (_conversationController.isSending) ...[
+                      const SizedBox(height: 12),
+                      Semantics(
+                        liveRegion: true,
+                        label: AppLocalizations.of(
+                          context,
+                        )!.voiceRequestBeingProcessed,
+                        child: const LinearProgressIndicator(
+                          key: Key('assistant-chat-loading'),
+                          color: AppColors.primaryPurple,
+                        ),
+                      ),
+                    ],
+                    if (_controller.assistantResponse != null) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          OutlinedButton.icon(
+                            key: const Key('assistant-read-answer'),
+                            onPressed: _inputBusy
+                                ? null
+                                : _controller.repeatResponse,
+                            icon: const Icon(Icons.volume_up_outlined),
+                            label: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.assistantVoiceReadAnswer,
+                            ),
+                          ),
+                          if (_controller.state ==
+                              AssistantInteractionState.speaking)
+                            TextButton.icon(
+                              onPressed: _controller.stopSpeaking,
+                              icon: const Icon(Icons.stop_rounded),
+                              label: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.assistantVoiceStopReading,
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -267,6 +363,13 @@ class _AssistantPageState extends State<AssistantPage>
                           icon: Icons.support_agent_rounded,
                           onTap: () => context.go('/pusat-bantuan'),
                         ),
+                        AssistantQuickAction(
+                          label: AppLocalizations.of(
+                            context,
+                          )!.assistantCameraGuideAction,
+                          icon: Icons.camera_alt_rounded,
+                          onTap: () => context.push('/asisten/pemandu-kamera'),
+                        ),
                       ],
                     ),
                   ],
@@ -274,7 +377,8 @@ class _AssistantPageState extends State<AssistantPage>
               ),
             ),
             AssistantComposer(
-              onSubmit: _conversationController.submitText,
+              enabled: !_inputBusy,
+              onSubmit: _submitTypedMessage,
               onMicrophoneTap: _voiceAction,
               microphoneSemanticsLabel: _voiceSemanticsLabel(context),
             ),
@@ -283,6 +387,26 @@ class _AssistantPageState extends State<AssistantPage>
         ),
       ),
     );
+  }
+
+  bool get _inputBusy =>
+      _conversationController.isSending ||
+      _controller.state == AssistantInteractionState.listening ||
+      _controller.state == AssistantInteractionState.processing;
+
+  String _voiceErrorText(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (_controller.errorCode) {
+      'error_permission' ||
+      'error_permission_denied' => l10n.assistantVoicePermissionDenied,
+      'VOICE_LANGUAGE_UNAVAILABLE' => l10n.assistantVoiceLanguageUnavailable,
+      'VOICE_PLAYBACK_UNAVAILABLE' => l10n.assistantVoicePlaybackUnavailable,
+      'AI_QUOTA' => l10n.assistantAiQuota,
+      'AI_TIMEOUT' => l10n.assistantAiTimeout,
+      'AI_NOT_CONFIGURED' => l10n.assistantAiNotConfigured,
+      'AI_UNAVAILABLE' => l10n.assistantUnavailable,
+      _ => l10n.assistantVoiceUnavailable,
+    };
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -350,78 +474,6 @@ class _AssistantPageState extends State<AssistantPage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildWakeWordSetting(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final enabled = _controller.wakeWordEnabled;
-    return Semantics(
-      container: true,
-      label: l10n.wakeWordMode,
-      value: enabled ? l10n.active : l10n.inactive,
-      toggled: enabled,
-      onTap: () => _controller.toggleWakeWord(!enabled),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.statusGreen.withValues(alpha: 0.08)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: enabled
-                ? AppColors.statusGreen.withValues(alpha: 0.45)
-                : AppColors.cardBorder,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              enabled ? Icons.hearing_rounded : Icons.hearing_disabled_rounded,
-              color: enabled ? AppColors.statusGreen : AppColors.textSecondary,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.listenWakeWord,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    enabled
-                        ? l10n.wakeWordActiveText
-                        : l10n.wakeWordPageOnly,
-                    style: TextStyle(
-                      color: enabled
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ExcludeSemantics(
-              child: Switch(
-                key: const Key('wake-word-switch'),
-                value: enabled,
-                onChanged: _controller.toggleWakeWord,
-                activeThumbColor: AppColors.statusGreen,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -1,0 +1,263 @@
+import { NextFunction, Request, Response } from 'express';
+import { z } from 'zod';
+import { prisma } from '../../infrastructure/database/prismaClient';
+import { ApiError } from '../../domain/errors/ApiError';
+import {
+  publicCodeForLine,
+  stationDisplayName,
+} from '../../domain/services/stationIdentity';
+import { resolvePlatformRule } from '../../domain/services/platformRuleService';
+import { beginTiming, measurePhase } from '../../infrastructure/observability/requestTiming';
+import { RouteService } from '../../domain/services/routeService';
+import { resolveScheduleDirection } from '../../domain/services/scheduleDirection';
+
+const querySchema = z.object({
+  stationId: z.string().uuid().optional(),
+  station: z.string().trim().min(1).optional(),
+  trainType: z.enum(['KRL', 'LRT', 'MRT']).optional(),
+  isWeekend: z.enum(['true', 'false']).optional(),
+  departureFrom: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  departureTo: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+
+const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const toMinute = (value: string) => {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+};
+const formatMinute = (value: number) =>
+  `${String(Math.floor((value % 1440) / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+
+export const getSchedules = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = querySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw new ApiError(
+        400,
+        'Invalid schedule filters',
+        'VALIDATION_ERROR',
+        parsed.success ? undefined : parsed.error.issues,
+      );
+    }
+    const { stationId, station, trainType, isWeekend, departureFrom, departureTo, page, limit } = parsed.data;
+    // Without a station, list every PDF service once at its initial station.
+    // Station queries below continue listing all timed departures at that station.
+    if (!stationId && !station && trainType !== 'LRT' && trainType !== 'MRT') {
+      const dataset = await prisma.timetableDataset.findFirst({ where: { isActive: true } });
+      if (!dataset) throw new ApiError(503, 'No active KRL timetable dataset', 'TIMETABLE_UNAVAILABLE');
+      const where = {
+        datasetId: dataset.id,
+        calendar: { code: { in: isWeekend === 'true' ? ['DAILY'] : ['DAILY', 'WEEKDAY'] } },
+        ...(departureFrom || departureTo ? { stops: { some: {
+          sequence: 1,
+          departureMinute: {
+            ...(departureFrom ? { gte: toMinute(departureFrom) } : {}),
+            ...(departureTo ? { lte: toMinute(departureTo) } : {}),
+          },
+        } } } : {}),
+      };
+      const [services, total] = await prisma.$transaction([
+        prisma.trainService.findMany({
+          where, skip: (page - 1) * limit, take: limit,
+          orderBy: [{ trainNumber: 'asc' }, { id: 'asc' }],
+          include: {
+            calendar: { select: { code: true } },
+            stops: {
+              where: { isPassThrough: false, departureMinute: { not: null } },
+              orderBy: { sequence: 'asc' },
+              include: { station: { select: { id: true, name: true, officialName: true, slug: true, operationalCode: true } } },
+            },
+          },
+        }),
+        prisma.trainService.count({ where }),
+      ]);
+      res.json({ success: true, data: services.map((service) => {
+        const first = service.stops[0];
+        const last = service.stops.at(-1);
+        if (!first || !last) throw new ApiError(500, 'Timetable service has no timed stops', 'TIMETABLE_INVALID');
+        const departure = first.departureMinute!;
+        return {
+          id: service.id, trainName: `KA ${service.trainNumber}`, trainNumber: service.trainNumber,
+          continuationTrainNumber: service.continuationTrainNumber,
+          route: `${stationDisplayName(first.station)} - ${stationDisplayName(last.station)}`,
+          departureTime: formatMinute(departure), arrivalTime: formatMinute(last.arrivalMinute ?? departure),
+          dayOffset: Math.floor(departure / 1440), platform: '', trainType: 'KRL',
+          isWeekend: isWeekend === 'true', calendarCode: service.calendar.code, lineSlug: service.lineSlug,
+          station: { ...first.station, name: stationDisplayName(first.station) },
+        };
+      }), meta: { page, limit, total, datasetVersion: dataset.version, scope: 'services' } });
+      return;
+    }
+    const finishCatalog = beginTiming('schedule_catalog');
+    const timetableStation = stationId || station
+      ? await RouteService.resolveStation(stationId ?? station!)
+      : null;
+    const activeDataset =
+      timetableStation?.isKrl && trainType !== 'LRT' && trainType !== 'MRT'
+        ? await prisma.timetableDataset.findFirst({ where: { isActive: true } })
+        : null;
+    finishCatalog();
+
+    if (timetableStation && activeDataset) {
+      const stopWhere = {
+        stationId: timetableStation.id,
+        isPassThrough: false,
+        departureMinute: {
+          not: null,
+          ...(departureFrom ? { gte: toMinute(departureFrom) } : {}),
+          ...(departureTo ? { lte: toMinute(departureTo) } : {}),
+        },
+        service: {
+          datasetId: activeDataset.id,
+          calendar: { code: { in: isWeekend === 'true' ? ['DAILY'] : ['DAILY', 'WEEKDAY'] } },
+        },
+      } as const;
+      const [departures, total] = await measurePhase('schedule_query', () => prisma.$transaction([
+        prisma.trainStopTime.findMany({
+          where: stopWhere,
+          include: {
+            service: {
+              include: {
+                calendar: { select: { code: true } },
+                stops: {
+                  where: { arrivalMinute: { not: null } },
+                  orderBy: { sequence: 'asc' },
+                  select: {
+                    sequence: true,
+                    arrivalMinute: true,
+                    station: { select: { name: true, officialName: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: [{ departureMinute: 'asc' }, { id: 'asc' }],
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.trainStopTime.count({ where: stopWhere }),
+      ]));
+      res.json({
+        success: true,
+        data: await measurePhase('schedule_format', () => Promise.all(departures.map(async ({ id: stopId, sequence, service, departureMinute }) => {
+          const first = service.stops[0];
+          const last = service.stops.at(-1);
+          const display = (value: typeof first | undefined) => value?.station.officialName ?? value?.station.name ?? '';
+          const directionInfo = resolveScheduleDirection(
+            sequence,
+            service.stops.map((stop) => ({
+              sequence: stop.sequence,
+              stationName: display(stop),
+            })),
+          );
+          const destination = directionInfo?.destination ?? display(last);
+          const platformRule = await resolvePlatformRule(prisma, {
+            stationId: timetableStation.id,
+            lineSlug: service.lineSlug,
+            direction: service.direction,
+            destination,
+          });
+          return {
+            id: stopId,
+            trainName: `KA ${service.trainNumber}`,
+            trainNumber: service.trainNumber,
+            continuationTrainNumber: service.continuationTrainNumber,
+            route: `${display(first)} - ${display(last)}`,
+            departureTime: formatMinute(departureMinute!),
+            arrivalTime: formatMinute(last?.arrivalMinute ?? departureMinute!),
+            dayOffset: Math.floor((departureMinute ?? 0) / 1440),
+            platform: platformRule?.platform ?? '',
+            trainType: 'KRL',
+            nextStation: directionInfo?.nextStation ?? null,
+            destination,
+            direction: service.direction,
+            isWeekend: isWeekend === 'true',
+            calendarCode: service.calendar.code,
+            lineSlug: service.lineSlug,
+            station: {
+              id: timetableStation.id,
+              slug: timetableStation.slug,
+              name: stationDisplayName(timetableStation),
+              operationalCode: timetableStation.operationalCode,
+            },
+          };
+        }))),
+        meta: { page, limit, total, datasetVersion: activeDataset.version },
+      });
+      return;
+    }
+
+    const where = {
+        ...(timetableStation ? { stationId: timetableStation.id } : {}),
+      ...(!timetableStation && station
+        ? {
+            station: {
+              OR: [
+                { name: { contains: station, mode: 'insensitive' as const } },
+                { officialName: { contains: station, mode: 'insensitive' as const } },
+                { operationalCode: { equals: station, mode: 'insensitive' as const } },
+                { aliases: { some: { normalized: normalize(station) } } },
+                { publicCodes: { some: { code: { equals: station } } } },
+              ],
+            },
+          }
+        : {}),
+      ...(trainType ? { trainType } : {}),
+      ...(isWeekend ? { isWeekend: isWeekend === 'true' } : {}),
+      ...(departureFrom || departureTo
+        ? {
+            departureTime: {
+              ...(departureFrom ? { gte: departureFrom } : {}),
+              ...(departureTo ? { lte: departureTo } : {}),
+            },
+          }
+        : {}),
+    };
+    const [schedules, total] = await measurePhase('schedule_query', () => prisma.$transaction([
+      prisma.schedule.findMany({
+        where,
+        include: {
+          station: { include: { nodes: true, lines: true, publicCodes: true } },
+        },
+        orderBy: { departureTime: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.schedule.count({ where }),
+    ]));
+    res.json({
+      success: true,
+      data: schedules.map(({ station: scheduleStation, ...schedule }) => ({
+        ...schedule,
+        station: {
+          id: scheduleStation.id,
+          slug: scheduleStation.slug,
+          name: stationDisplayName(scheduleStation),
+          shortName: scheduleStation.name,
+          officialName: stationDisplayName(scheduleStation),
+          operationalCode: scheduleStation.operationalCode,
+          isBoardingAllowed: scheduleStation.isBoardingAllowed,
+          isTransit: scheduleStation.isTransit,
+          isAccessible: scheduleStation.isAccessible,
+          isLrt: scheduleStation.isLrt,
+          isKrl: scheduleStation.isKrl,
+          isMrt: scheduleStation.isMrt,
+          lineInfo: scheduleStation.lineInfo,
+          statusText: scheduleStation.statusText,
+          statusColor: scheduleStation.statusColor,
+          lines: scheduleStation.lines,
+          publicCodes: scheduleStation.publicCodes,
+          nodes: scheduleStation.nodes.map(({ nodeKey: _nodeKey, ...node }) => {
+            const publicCode = publicCodeForLine(scheduleStation, node.lineId);
+            return { ...node, code: publicCode, publicCode };
+          }),
+        },
+      })),
+      meta: { page, limit, total },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

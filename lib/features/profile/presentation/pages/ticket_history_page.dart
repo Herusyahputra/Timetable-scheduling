@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_notice.dart';
 import '../widgets/profile_detail_scaffold.dart';
 
 enum _TicketFilter { all, active, completed }
@@ -28,13 +29,11 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
   void _clearHistory() {
     final l10n = AppLocalizations.of(context)!;
     setState(() => _showHistory = false);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(l10n.historyCleared),
-        ),
-      );
+    AppNotice.show(
+      context,
+      message: l10n.historyCleared,
+      type: AppNoticeType.success,
+    );
   }
 
   @override
@@ -85,7 +84,7 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
               date: l10n.historyLrtDate,
               status: l10n.completed,
               accentColor: AppColors.accentOrange,
-              badgeColor: const Color(0xFFF1F5F9),
+              badgeColor: AppColors.background,
               badgeTextColor: AppColors.textSecondary,
               onTap: () => context.push('/detail-tiket-selesai'),
               detailLabel: l10n.detail,
@@ -111,7 +110,7 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
             width: 36,
             height: 36,
             decoration: const BoxDecoration(
-              color: Color(0xFFFFF1E8),
+              color: AppColors.accentOrangeLight,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -192,7 +191,10 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.confirmation_num_outlined, color: AppColors.textHint),
+          const Icon(
+            Icons.confirmation_num_outlined,
+            color: AppColors.textHint,
+          ),
           const SizedBox(height: 10),
           Text(
             l10n.historyNoTickets,
@@ -209,7 +211,7 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
 
   Widget _buildClearAction(AppLocalizations l10n) {
     return Material(
-      color: const Color(0xFFEFF6FF),
+      color: AppColors.primaryBlueLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: const BorderSide(color: Color(0xFFBFDBFE)),
@@ -244,7 +246,10 @@ class _TicketHistoryPageState extends State<TicketHistoryPage> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),
